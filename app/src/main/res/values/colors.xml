@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+<!-- OLD COLORS
+    <color name="colorAccent">#534bae</color>
+    <color name="buttonBackground">#504538</color>
+    <color name="textForeground">#B7A99A</color>
+    <color name="colorPrimary">#1a237e</color>
+    <color name="colorPrimaryDark">#000051</color>
+
+    <color name="colorAccent">#a6a6a6</color>
+    <color name="buttonBackground">#504538</color>
+    <color name="textForeground">#B7A99A</color>
+    <color name="colorPrimary">#777777</color>
+    <color name="colorPrimaryDark">#a6a6a6</color>
+-->
+    <color name="colorAccent">#7affb4</color>
+    <color name="buttonBackground">#504538</color>
+    <color name="textForeground">#B7A99A</color>
+    <color name="colorPrimary">#3ddc84</color>
+    <color name="colorPrimaryDark">#00a956</color>
+
+    <color name="seek_bar_background">#ababab</color>
+
+    <color name="seek_bar_progress_none">#ED4714</color>
+    <color name="icon_background">#777777</color>
+    <color name="seek_bar_progress_low">#FF890F</color>
+    <color name="seek_bar_progress_medium">#FFC100</color>
+    <color name="seek_bar_progress_high">#3ddc84</color>
+    <!--<color name="seek_bar_progress_high">#43D40F</color>-->
+    <color name="seek_bar_secondary_progress">#3399CC</color>
+</resources>

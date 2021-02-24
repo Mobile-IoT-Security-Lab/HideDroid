@@ -1,0 +1,12 @@
+<resources>
+    <dimen name="one_sp">1sp</dimen>
+    <dimen name="activity_horizontal_margin">16dp</dimen>
+    <dimen name="activity_vertical_margin">16dp</dimen>
+    <dimen name="smallPadding">8dp</dimen>
+    <dimen name="miniPadding">4dp</dimen>
+
+    <dimen name="largePadding">16dp</dimen>
+    <dimen name="seek_bar_thickness">4dp</dimen>
+    <dimen name="seek_bar_thumb_size">20dp</dimen>
+    <dimen name="fab_margin">16dp</dimen>
+</resources>

@@ -1,0 +1,8 @@
+include ':realmdatahelper'
+include ':apksig'
+include ':anonymization-data'
+include ':netbare-injector'
+include ':netbare-core'
+include ":apktool"
+rootProject.name = "HideDroid"
+include ":app"

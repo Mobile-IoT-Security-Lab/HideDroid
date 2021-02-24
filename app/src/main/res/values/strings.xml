@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">HideDroid</string>
+
+
+    <string name="choose_app">Select App</string>
+    <string name="click_to_install_app">Install App</string>
+    <string name="click_to_save_settings">Apply Settings</string>
+    <string name="click_to_repacking">Apply App Modification</string>
+    <string name="button_start_vpn">START\nANONYMIZATION</string>
+    <string name="button_off_vpn">OFF\nANONYMIZATION</string>
+
+    <string name="decode_run_title">Repackaging...</string>
+    <string name="sign_run_title">Signing...</string>
+    <string name="verify_run_title">Verifying signature...</string>
+    <string name="informative_apply_privacy_level">Would you like to apply this privacy level?</string>
+    <string name="informative_app_modification">You need to modify the app to allow data anonymization, do you want to continue?</string>
+    <string name="android_versione_7">Android Version Greater than 7</string>
+    <string name="ask_app_modification">You need to modify the app to allow data anonymization, do you want to continue?</string>
+    <string name="app_already_installed">App already installed</string>
+    <string name="ask_removing_app">You need to uninstall the old app before installing the new one!</string>
+    <string name="start_incognito_mode">Incognito Mode</string>
+    <string name="function_system_ca_string_not_available">Function not available, needed root device</string>
+    <string name="install_system_ca">We detected that the device is rooted, would you like to install the certificate on system directory?</string>
+    <string name="function_install_ca_done">Action already done</string>
+    <string name="function_install_ca_error">Action not needed for your Android version</string>
+
+
+    <string name="select_privacy_level">Select Privacy Level: </string>
+    <string name="channel_name_notification">HideDroid</string>
+    <string name="channel_id_notification">it.unige.HideDroid.NOTIFICATION_CHANNEL_ID</string>
+    <string name="title_activity_main">MainActivity</string>
+    <string name="template_path">/storage/emulated/0/HideDroid/com.duolingo_singed.apk</string>
+
+
+    <string name="preference_file_key">preference_file_key</string>
+    <string name="key_root_certificate_preference">installed_system_ca</string>
+
+    <string name="dialog_message">Restart incognito mode to track this new application</string>
+    <string name="dialog_title"><font fgcolor="#FF3B30">Attention</font></string>
+    <string name="dialog_button">OK</string>
+
+    <string name="minNumberOfRequestForDP">5</string>
+    <string name="numberOfPrivacyLevels">4</string>
+    <string name="numberOfActions">3</string>
+</resources>

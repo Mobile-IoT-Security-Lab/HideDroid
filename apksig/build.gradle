@@ -1,0 +1,14 @@
+// Generic Gradle project
+
+apply plugin: 'java'
+
+sourceCompatibility = '1.8'
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    implementation files('lib\\android-util-3.0.1.jar')
+    testCompile 'junit:junit:4.12'
+}

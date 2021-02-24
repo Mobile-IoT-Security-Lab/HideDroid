@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_gravity="center_vertical"
+    android:layout_marginBottom="8dp"
+    android:layout_marginTop="8dp"
+    android:layout_marginStart="8dp"
+    android:layout_marginEnd="8dp"
+
+
+    android:orientation="vertical"
+    android:padding="8dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="4dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!--<TextView
+            android:id="@+id/idPathApk"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="108dp"
+            android:layout_marginTop="8sp"
+            android:fontFamily="@font/roboto"
+            android:text="path_apk"
+            app:layout_constraintStart_toEndOf="@+id/iconInstallApp"
+            app:layout_constraintTop_toBottomOf="@+id/idPackageNameInstallApp" />-->
+
+
+        <ImageView
+            android:id="@+id/iconInstallApp"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.041"
+            app:srcCompat="@android:drawable/sym_def_app_icon" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/idPackageNameInstallApp"
+            android:layout_width="208dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="28dp"
+            android:fontFamily="@font/roboto"
+            android:text="package_name"
+            android:textColor="@android:color/black"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="@+id/iconInstallApp"
+            app:layout_constraintStart_toEndOf="@+id/iconInstallApp"
+            app:layout_constraintTop_toTopOf="@+id/iconInstallApp" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/textViewSelectPrivacyLevel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="48dp"
+            android:fontFamily="@font/roboto"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:textColor="@android:color/black"
+            android:text="@string/select_privacy_level"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.1"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/iconInstallApp" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/textViewPrivacyLevel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="164dp"
+            android:fontFamily="@font/roboto_bold"
+            android:paddingLeft="8dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:text="LOW"
+            android:textColor="@android:color/black"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toEndOf="@+id/textViewSelectPrivacyLevel"
+            app:layout_constraintTop_toTopOf="@+id/textViewSelectPrivacyLevel" />
+
+        <androidx.appcompat.widget.AppCompatSeekBar
+            android:id="@+id/privacySeekBar"
+            style="@style/Widget.AppCompat.SeekBar.Discrete"
+            android:layout_width="300dp"
+            android:layout_height="20dp"
+            android:max="3"
+            android:progress="1"
+            android:progressDrawable="@drawable/seek_bar_low"
+            android:thumb="@drawable/seek_thumb_low"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.454"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/textViewSelectPrivacyLevel"
+            app:layout_constraintVertical_bias="0.09" />
+
+
+        <!--<Button
+            android:id="@+id/buttonSaveSetting"
+            android:layout_width="300dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="44dp"
+            android:background="@drawable/rounded_button"
+            android:fontFamily="@font/roboto"
+            android:padding="16dp"
+            android:text="@string/click_to_save_settings"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.5"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/privacySeekBar"
+            app:layout_constraintVertical_bias="0.344" />-->
+
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonSaveSetting"
+            android:layout_width="300dp"
+            android:layout_height="wrap_content"
+            android:elevation="10dp"
+            android:fontFamily="@font/roboto"
+            android:padding="16dp"
+            android:text="@string/click_to_save_settings"
+            android:textColor="@android:color/black"
+            android:textStyle="bold"
+            app:cornerRadius="20sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.494"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/pathApk"
+            app:layout_constraintVertical_bias="0.484"></com.google.android.material.button.MaterialButton>
+
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/labelPath"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="36dp"
+            android:fontFamily="@font/roboto"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:text="Path New App:"
+            android:textColor="@android:color/black"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.079"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/privacySeekBar" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/pathApk"
+            android:layout_width="250dp"
+            android:layout_height="wrap_content"
+            android:paddingTop="8dp"
+            android:paddingLeft="8dp"
+            android:paddingBottom="8dp"
+            android:text="@string/template_path"
+            app:layout_constraintStart_toEndOf="@+id/labelPath"
+            app:layout_constraintTop_toTopOf="@+id/labelPath" />
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.cardview.widget.CardView>

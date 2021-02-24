@@ -1,0 +1,26 @@
+apply plugin: "com.android.library"
+
+android {
+    compileSdkVersion 29
+    buildToolsVersion "30.0.0"
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    defaultConfig {
+        minSdkVersion 23
+        targetSdkVersion 29
+        versionCode 1
+        versionName "1.0.0"
+    }
+}
+
+dependencies {
+    implementation 'commons-io:commons-io:2.2'
+    implementation project(path: ':apksig')
+    // noinspection GradleDependency
+    //implementation "com.android.tools.build:apksig:2.3.0"
+    //implementation "com.android.tools.build:apksig:4.0.1"
+}

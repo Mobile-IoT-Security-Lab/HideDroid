@@ -1,0 +1,3 @@
+["event_type", "event_timestamp", "client_id", "app_release", "memory", "os", "model", "app_version",
+  "screen", "android_sdk_int", "system_id", "device_info", "uuidDevice", "OSVersion", "CarrierName",
+  "Resolution", "DeviceName", "device", "platform", "sdkVersion"]
