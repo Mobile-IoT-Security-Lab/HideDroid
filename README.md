@@ -28,7 +28,7 @@ Questions, bug reports and pull requests are welcome on GitHub at [https://githu
 
 ## ❱ Team
 
-* [Davide Caputo](https://csec.it/people/davide_caputo/) - Research Assistant & Core Developer
+* [Davide Caputo](https://csec.it/people/davide_caputo/) - Research Assistant & Developer
 * [Gabriel Claudiu Georgiu](https://github.com/ClaudiuGeorgiu) - Developer
 * [Francesco Pagano](https://github.com/X3no21) - Developer
 * [Giovanni Bottino](https://github.com/GiovanniBottino) - Developer
