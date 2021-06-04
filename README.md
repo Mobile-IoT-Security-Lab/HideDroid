@@ -53,5 +53,5 @@ This software was developed for research purposes at the Computer Security Lab (
 * [Francesco Pagano](https://github.com/X3no21) - Post-Graduate Research Fellow & Developer
 * [Giovanni Bottino](https://github.com/GiovanniBottino) - Developer
 * [Gabriel Claudiu Georgiu](https://github.com/ClaudiuGeorgiu) - Developer
-* [Luca Verderame](https://csec.it/people/alessio_merlo/) - Postdoctoral Researcher
+* [Luca Verderame](https://csec.it/people/luca_verderame/) - Postdoctoral Researcher
 * [Alessio Merlo](https://csec.it/people/alessio_merlo/) - Faculty Member
