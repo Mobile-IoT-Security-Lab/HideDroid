@@ -18,11 +18,9 @@ More details about **HideDroid** can be found in the paper [titolo](link).
 
 We submit it for consideration to [IEEE TDSC journal](https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=8858).
 
-##  ❱ Screenshot 
-Home Page             |  App Selection | Privacy Selection | Incognito Mode Enabled
-:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------: 
-![](img/start_ui_hidedroid.png)  |  ![](img/select_app_hidedroid.png) | ![](img/select_privacy_level.png) | ![](img/start_ui_on_hidedroid.png)
+## ❱ App Screenshots 
 
+![](img/app_screenshot.png)
 
 ## ❱ Contributing
 
