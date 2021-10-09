@@ -23,7 +23,6 @@ class ServiceAnonymization: Service() {
     lateinit var isActive: AtomicBoolean
     lateinit var preferences: SharedPreferences
     lateinit var listener: ServiceAnonymizationChangeStatus
-    lateinit var realmConfigLog: RealmConfiguration
     lateinit var realmConfigDGH: RealmConfiguration
 
     //Threads
@@ -56,7 +55,6 @@ class ServiceAnonymization: Service() {
         preferences = this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
         isActive = AtomicBoolean(false)
         listener = (this.application as HideDroidApplication).serviceAnonymizationChangeStatusListener
-        realmConfigLog = (this.application as HideDroidApplication).realmConfigLog
         realmConfigDGH = (this.application as HideDroidApplication).realmConfigDGH
         requestToAnonymizeLock = ReentrantLock()
         requestToAnonymizeCondition = requestToAnonymizeLock.newCondition()
@@ -66,9 +64,9 @@ class ServiceAnonymization: Service() {
         //DataAnonymizer
         dataAnonymizer = DataAnonymizer(isActive, (this.application as HideDroidApplication).isDebugEnabled, minNumberOfRequestForDP,
                 (this.application as HideDroidApplication).selectedPrivacyLevels, getString(R.string.numberOfPrivacyLevels).toInt(), numberOfActions,
-                realmConfigLog, realmConfigDGH, requestToAnonymizeLock, requestToAnonymizeCondition,
+                realmConfigDGH, requestToAnonymizeLock, requestToAnonymizeCondition,
                 (this.application as HideDroidApplication).selectedPrivacyLevelsLock, (this.application as HideDroidApplication).blackListFields,
-                (this.application as HideDroidApplication).dghBox, (this.application as HideDroidApplication).androidId)
+                (this.application as HideDroidApplication).dghBox)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

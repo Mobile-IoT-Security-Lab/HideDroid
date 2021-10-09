@@ -1,16 +1,13 @@
 package com.dave.anonymization_data.anonymizationthreads
 
 import android.util.Log
-import com.dave.anonymization_data.algorithms.AnonymizationHeuristic
 import com.dave.anonymization_data.algorithms.DifferentialPrivacy
 import com.dave.anonymization_data.data.ContentEncoding
 import com.dave.anonymization_data.data.ContentType
 import com.dave.anonymization_data.data.MultidimensionalData
 import com.dave.anonymization_data.parsering.BodyParser
 import com.dave.anonymization_data.parsering.MultipartValueWrapper
-import com.dave.realmdatahelper.debug.Error
 import com.dave.realmdatahelper.hidedroid.AnalyticsRequest
-import com.dave.realmdatahelper.utils.Utils
 import com.github.megatronking.netbare.http.HttpMethod
 import com.github.megatronking.netbare.http.HttpProtocol
 import io.realm.RealmConfiguration
@@ -18,7 +15,6 @@ import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import okio.*
-import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.net.URLDecoder
@@ -37,13 +33,6 @@ import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 
 
-/**
- * Thread che anonimizza i pacchetti ricevuti dall'HttpInterceptor. Le operazioni compiute sono:
- * - parsering del pacchetto
- * - anonimizzazione del pacchetto
- * - codifica del pacchetto
- * Il pacchetto anonimizzato viene restituito all'HttpInterceptor tramite la classe Box
- */
 class DataAnonymizer : Runnable {
 
     private val TAG = DataAnonymizer::class.java.name
@@ -53,7 +42,6 @@ class DataAnonymizer : Runnable {
     private val selectedPrivacyLevels: MutableMap<String, AtomicInteger>
     private val numberOfPrivacyLevels: Int
     private val numberOfActions: Int
-    private val realmConfigLog: RealmConfiguration
     private val realmConfigDGH: RealmConfiguration
     private val blackListFields: Set<String>
     private var dghBox: DghBox
@@ -61,19 +49,17 @@ class DataAnonymizer : Runnable {
     val requestToAnonymizeLock: ReentrantLock
     val requestToAnonymizeCondition: Condition
     private val selectedPrivacyLevelsLock: ReentrantLock
-    private val androidId: String
 
 
     constructor(isActive: AtomicBoolean, isDebugEnabled: AtomicBoolean, minNumberOfRequestForDP: Int, selectedPrivacyLevels: MutableMap<String, AtomicInteger>,
-                numberOfPrivacyLevels: Int, numberOfActions: Int, realmConfigLog: RealmConfiguration, realmConfigDGH: RealmConfiguration, requestToAnonymizeLock: ReentrantLock, requestToAnonymizeCondition: Condition,
-                selectedPrivacyLevelsLock: ReentrantLock, blackListFields: Set<String>, dghBox: DghBox, androidId: String) {
+                numberOfPrivacyLevels: Int, numberOfActions: Int, realmConfigDGH: RealmConfiguration, requestToAnonymizeLock: ReentrantLock, requestToAnonymizeCondition: Condition,
+                selectedPrivacyLevelsLock: ReentrantLock, blackListFields: Set<String>, dghBox: DghBox) {
         this.isActive = isActive
         this.isDebugEnabled = isDebugEnabled
         this.minNumberOfRequestForDP = minNumberOfRequestForDP
         this.selectedPrivacyLevels = selectedPrivacyLevels
         this.numberOfPrivacyLevels = numberOfPrivacyLevels
         this.numberOfActions = numberOfActions
-        this.realmConfigLog = realmConfigLog
         this.realmConfigDGH = realmConfigDGH
         this.blackListFields = blackListFields
         this.dghBox = dghBox
@@ -81,7 +67,6 @@ class DataAnonymizer : Runnable {
         this.requestToAnonymizeLock = requestToAnonymizeLock
         this.requestToAnonymizeCondition = requestToAnonymizeCondition
         this.selectedPrivacyLevelsLock = selectedPrivacyLevelsLock
-        this.androidId = androidId
     }
 
     override fun run() {
@@ -103,8 +88,7 @@ class DataAnonymizer : Runnable {
                             break@labelInterrupt
                         } else {
                             if (isDebugEnabled.get()) {
-                                Error("", "", "", "", "DataAnonymizer thread was interrupted while isActive = ${isActive.get()} due to reason: $ie").insertOrUpdateError(realmConfigLog)
-                                Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "DataAnonymizer thread was interrupted while isActive = ${isActive.get()} due to reason: $ie", "interruptingThread", "error")
+                                Log.e("threadInterrupted", "DataAnonymizer thread was interrupted while isActive = ${isActive.get()} due to reason: $ie")
                             }
                             Log.d(TAG, "DataAnonymizer thread was interrupted while isActive = ${isActive.get()} due to reason: $ie")
                         }
@@ -119,7 +103,7 @@ class DataAnonymizer : Runnable {
             val bodyParser = BodyParser()
 
             //Log.d(TAG, "DataAnonymizer Thread starts parsing input request: ${requestToAnonymize.id}")
-            val requestToAnonymizeParsed = bodyParser.parse(requestToAnonymize, isDebugEnabled, realmConfigLog, androidId)
+            val requestToAnonymizeParsed = bodyParser.parse(requestToAnonymize, isDebugEnabled)
             var selectedPrivacyLevel: AtomicInteger? = null
             selectedPrivacyLevelsLock.lock()
             try {
@@ -134,13 +118,12 @@ class DataAnonymizer : Runnable {
             if (selectedPrivacyLevel != null && selectedPrivacyLevel.get() != 0) {
                 //Log.d(TAG, "DataAnonymizer Thread starts anonymizing request: ${requestToAnonymizeParsed.id}")
                 val dp = DifferentialPrivacy(requestToAnonymizeParsed, blackListFields, dghBox, selectedPrivacyLevel, numberOfPrivacyLevels, numberOfActions, minNumberOfRequestForDP)
-                val requestsAnonymized = dp.anonymize(isDebugEnabled, realmConfigLog, realmConfigDGH, androidId)
+                val requestsAnonymized = dp.anonymize(isDebugEnabled, realmConfigDGH)
 
                 //Log.d(TAG, "DataAnonymizer Thread starts encoding anonymized request")
                 if (DifferentialPrivacy.EVENT_GENERALIZED in requestsAnonymized) {
                     val eventGeneralized = requestsAnonymized[DifferentialPrivacy.EVENT_GENERALIZED]
-                    packet = bodyParser.encodeBody(eventGeneralized
-                            ?: error(""), box, isDebugEnabled, realmConfigLog, androidId)
+                    packet = bodyParser.encodeBody(eventGeneralized ?: error(""), box, isDebugEnabled)
 
                     var headersString = ""
                     val headersJsonObject = JSONObject(eventGeneralized.headers!!)
@@ -190,8 +173,7 @@ class DataAnonymizer : Runnable {
                                                 } catch (e: Exception) {
                                                     Log.e(TAG, "Error on decode bodySent: $e")
                                                 }
-                                                Error(requestToAnonymize.packageName, newEventGeneralized.host!!, newEventGeneralized.headers!!, bodySent, "Error on sending new url-encoded request: $e").insertOrUpdateError(realmConfigLog)
-                                                Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Error on sending new url-encoded request due to reason: $e --- app ${requestToAnonymize.packageName}", "injectingRequest", "debug")
+                                                Log.e("errorSendingRequest", "Error on sending new url-encoded request: $e")
                                             }
                                         }
 
@@ -251,8 +233,7 @@ class DataAnonymizer : Runnable {
                                                 } catch (e: Exception) {
                                                     Log.e(TAG, "Error on decode bodySent: $e")
                                                 }
-                                                Error(requestToAnonymize.packageName, newEventGeneralized.host!!, newEventGeneralized.headers!!, bodySent, "Error on sending new multipart request: $e").insertOrUpdateError(realmConfigLog)
-                                                Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Error on sending new multipart request: $e --- app: ${requestToAnonymize.packageName}", "injectingRequest", "debug")
+                                                Log.e("errorSendingRequest", "Error on sending new multipart request: $e")
                                             }
                                         }
 
@@ -289,8 +270,7 @@ class DataAnonymizer : Runnable {
                                     }
                                     val request = requestBuilder
                                             .url(url)
-                                            .post(bodyParser.encodeBody(newEventGeneralized, box, isDebugEnabled, realmConfigLog, androidId)
-                                                    .toRequestBody("application/json".toMediaType()))
+                                            .post(bodyParser.encodeBody(newEventGeneralized, box, isDebugEnabled).toRequestBody("application/json".toMediaType()))
                                             .build()
 
                                     client.newCall(request).enqueue(object : Callback {
@@ -303,8 +283,7 @@ class DataAnonymizer : Runnable {
                                                 } catch (e: Exception) {
                                                     Log.e(TAG, "Error on decode bodySent: $e")
                                                 }
-                                                Error(requestToAnonymize.packageName, newEventGeneralized.host!!, newEventGeneralized.headers!!, bodySent, "Error on sending new json request: $e").insertOrUpdateError(realmConfigLog)
-                                                Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Error on sending new json request: $e --- app: ${requestToAnonymize.packageName}", "injectingRequest", "debug")
+                                                Log.e("errorSendingRequest", "Error on sending new json request: $e")
                                             }
                                         }
 
@@ -341,9 +320,9 @@ class DataAnonymizer : Runnable {
                                     }
                                     val request = requestBuilder
                                             .url(url)
-                                            .post(bodyParser.encodeBody(newEventGeneralized, box, isDebugEnabled, realmConfigLog, androidId).toRequestBody("text/plain".toMediaType())).build()
+                                            .post(bodyParser.encodeBody(newEventGeneralized, box, isDebugEnabled).toRequestBody("text/plain".toMediaType())).build()
 
-                                    client.newCall(request).enqueue(object: Callback {
+                                    client.newCall(request).enqueue(object : Callback {
                                         override fun onFailure(call: Call, e: IOException) {
                                             Log.e(TAG, "Error on sending new text/plain request: $e")
                                             if (isDebugEnabled.get()) {
@@ -353,8 +332,7 @@ class DataAnonymizer : Runnable {
                                                 } catch (e: Exception) {
                                                     Log.e(TAG, "Error on decode bodySent: $e")
                                                 }
-                                                Error(requestToAnonymize.packageName, newEventGeneralized.host!!, newEventGeneralized.headers!!, bodySent, "Error on sending new text/plain request: $e").insertOrUpdateError(realmConfigLog)
-                                                Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Error on sending new text/plain request: $e --- app: ${requestToAnonymize.packageName}", "injectingRequest", "debug")
+                                                Log.e("errorSendingRequest", "Error on sending new text/plain request: $e")
                                             }
                                         }
 
@@ -380,8 +358,7 @@ class DataAnonymizer : Runnable {
                                 else -> {
                                     Log.d(TAG, "Error on sending new injected request")
                                     if (isDebugEnabled.get()) {
-                                        Error(requestToAnonymize.packageName, newEventGeneralized.host!!, newEventGeneralized.headers!!, "", "Error on sending new injected request").insertOrUpdateError(realmConfigLog)
-                                        Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Error on sending new injected request --- app: ${requestToAnonymize.packageName}", "injectingRequest", "debug")
+                                        Log.e("errorSendingRequest", "Error on sending new injected request")
                                     }
                                 }
                             }
@@ -407,8 +384,7 @@ class DataAnonymizer : Runnable {
                                         } catch (e: Exception) {
                                             Log.e(TAG, "Error on decode bodySent: $e")
                                         }
-                                        Error(requestToAnonymize.packageName, newEventGeneralized.host!!, newEventGeneralized.headers!!, bodySent, "Error on sending new get request: $e").insertOrUpdateError(realmConfigLog)
-                                        Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Error on sending new get request: $e --- app: ${requestToAnonymize.packageName}", "injectingRequest", "debug")
+                                        Log.e("errorSendingRequest", "Error on sending new get request: $e")
                                     }
                                 }
 
@@ -444,8 +420,7 @@ class DataAnonymizer : Runnable {
             } catch (e: Exception) {
                 Log.d(TAG, "Error on sending back to HttpInterceptor request anonymized: ${requestToAnonymize.id} due to error: $e")
                 if (isDebugEnabled.get()) {
-                    Error("", "", "", "", "Error on sending back to HttpInterceptor request anonymized: ${requestToAnonymize.id} due to error: $e").insertOrUpdateError(realmConfigLog)
-                    Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Error on sending back to HttpInterceptor request anonymized due to error: $e --- app: ${requestToAnonymize.packageName}", "sendingBoxToHttpInterceptor", "error")
+                    Log.e("sendingToInterceptor", "Error on sending back to HttpInterceptor request anonymized: ${requestToAnonymize.id} due to error: $e")
                 }
             } finally {
                 box.lock.unlock()
@@ -495,8 +470,7 @@ class DataAnonymizer : Runnable {
             return buffer.readUtf8()
         } catch (e: IOException) {
             if (isDebugEnabled.get()) {
-                Error(multidimensionalRequest.packageName!!, multidimensionalRequest.host!!, multidimensionalRequest.headers!!, "", "Error on decoding body request: $e").insertOrUpdateError(realmConfigLog)
-                Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Error on decoding body request: $e --- app: ${multidimensionalRequest.packageName}", "injectingRequest", "debug")
+                Log.e("errorDecodeBody", "Error on decoding body request: $e")
             }
         }
         return ""

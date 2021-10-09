@@ -32,8 +32,6 @@ import it.unige.hidedroid.animators.Animators
 import it.unige.hidedroid.log.LoggerHideDroid
 import it.unige.hidedroid.models.AppItemRepacking
 import it.unige.hidedroid.models.ListAppsItemRepacking
-import com.dave.realmdatahelper.debug.Error
-import com.dave.realmdatahelper.utils.Utils
 import it.unige.hidedroid.realmdatahelper.UtilitiesStoreDataOnRealmDb
 import it.unige.hidedroid.view.AppAdapterRepacking
 import kotlinx.android.synthetic.main.activity_repacking.*
@@ -55,7 +53,6 @@ class SelectAppActivity() : AppCompatActivity(), PermissionListener {
     private var mDeterminateCircularProgressAnimator: ValueAnimator? = null
     private var progressBar: MaterialProgressBar?= null
     private var isDebugEnabled = -1
-    private lateinit var realmConfigLog: RealmConfiguration
 
     private var FOLDER_FILE: File? = null
 
@@ -66,7 +63,6 @@ class SelectAppActivity() : AppCompatActivity(), PermissionListener {
         FOLDER_FILE = File(Environment.getExternalStorageDirectory(), "HideDroid")
 
         isDebugEnabled = this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE).getInt(HideDroidApplication.DEBUG_ENABLED_KEY, -1)
-        realmConfigLog = (this.application as HideDroidApplication).realmConfigLog
 
         // check permission
         Dexter.withContext(this)
@@ -104,8 +100,7 @@ class SelectAppActivity() : AppCompatActivity(), PermissionListener {
         FOLDER_FILE!!.mkdirs()
         if (!FOLDER_FILE!!.exists()) {
             if (isDebugEnabled == 1) {
-                Error(packageName, "", "", "", "Error creating $FOLDER_FILE").insertOrUpdateError(realmConfigLog)
-                Utils().postToTelegramServer((this.application as HideDroidApplication).androidId, (System.currentTimeMillis() / 1000).toString(), "Error creating $FOLDER_FILE --- app: $packageName", "preparingFolderFile", "error")
+                Log.e("errorCreatingFolder", "Error creating $FOLDER_FILE")
             }
             throw AssertionError("Error creating " + FOLDER_FILE.toString())
         }
@@ -199,8 +194,7 @@ class SelectAppActivity() : AppCompatActivity(), PermissionListener {
                         apps.add(appItemRepacking)
                     } catch (exception: PackageManager.NameNotFoundException) {
                         if (isDebugEnabled == 1) {
-                            Error(app.packageName, "", "", "", "PackageName not found in list application ${app.packageName}").insertOrUpdateError(realmConfigLog)
-                            Utils().postToTelegramServer((application as HideDroidApplication).androidId, (System.currentTimeMillis() / 1000).toString(), "PackageName not found in list application ${app.packageName}", "selectingApp", "error")
+                            Log.e("pkNameNotFound", "PackageName not found in list application ${app.packageName}")
                         }
                         Log.d(TAG, "PackageName not found ${app.packageName}")
                     }

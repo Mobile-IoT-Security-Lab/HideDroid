@@ -4,38 +4,15 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/debug_button"
-        android:enabled="false"
-        android:icon="@drawable/ic_baseline_bug_report_disabled_27"
-        android:title="Debug Button"
-        app:showAsAction="always" />
-
-    <item
         android:id="@+id/clean_dir"
-        android:enabled="false"
         android:icon="@drawable/baseline_delete_24"
         android:title="clean directory"
         app:showAsAction="always" />
 
     <item
         android:id="@+id/installCACertificate"
-        android:enabled="false"
         android:icon="@drawable/baseline_archive_24"
         android:title="Install Certificate"
         app:showAsAction="always" />
 
-    <item android:id="@+id/extractDB"
-        app:showAsAction="collapseActionView"
-        android:icon="@drawable/baseline_save_24"
-        android:title="Extract Data Collected" />
-
-    <item android:id="@+id/extractDebugLogs"
-        app:showAsAction="collapseActionView"
-        android:icon="@drawable/baseline_save_24"
-        android:title="Extract Debug Log" />
-
-    <item android:id="@+id/extractDGH"
-        app:showAsAction="collapseActionView"
-        android:icon="@drawable/baseline_save_24"
-        android:title="Extract DGH" />
 </menu>

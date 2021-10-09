@@ -13,16 +13,12 @@ public class AbstractTaskWrapper {
     public ReentrantLock selectedPrivacyLevelsLock;
     public File[] files = null;
     public AtomicBoolean isDebugEnabled;
-    public RealmConfiguration realmConfigLog;
-    public String androidId;
 
     public AbstractTaskWrapper(Map<String, AtomicInteger> selectedPrivacyLevels, ReentrantLock selectedPrivacyLevelsLock, File[] files,
-                               AtomicBoolean isDebugEnabled, RealmConfiguration realmConfigLog, String androidId) {
+                               AtomicBoolean isDebugEnabled) {
         this.selectedPrivacyLevels = selectedPrivacyLevels;
         this.selectedPrivacyLevelsLock = selectedPrivacyLevelsLock;
         this.files = files;
         this.isDebugEnabled = isDebugEnabled;
-        this.realmConfigLog = realmConfigLog;
-        this.androidId = androidId;
     }
 }

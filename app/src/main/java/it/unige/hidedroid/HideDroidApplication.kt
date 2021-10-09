@@ -5,12 +5,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
-import com.dave.anonymization_data.algorithms.AnonymizationHeuristic
 import com.dave.anonymization_data.anonymizationthreads.DataAnonymizer
 import com.dave.realmdatahelper.hidedroid.PackageNamePrivacyLevel
 import com.dave.realmdatahelper.realmmodules.DGHModule
 import com.dave.realmdatahelper.realmmodules.DefaultModules
-import com.dave.realmdatahelper.realmmodules.LoggerModule
 import com.dave.realmdatahelper.realmmodules.PrivateTrackerModule
 import com.github.megatronking.netbare.BuildConfig
 import com.github.megatronking.netbare.NetBare
@@ -26,7 +24,6 @@ import it.unige.hidedroid.receiver.AppReceiver
 import it.unige.hidedroid.receiver.CheckBatteryReceiver
 import it.unige.hidedroid.service.ServiceAnonymization
 import me.weishu.reflection.Reflection
-import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -37,7 +34,6 @@ class HideDroidApplication : Application() {
     companion object {
         const val JSK_ALIAS = "HideDroidSample"
         const val DEBUG_ENABLED_KEY = "debugEnabled"
-        const val ANDROID_ID = "androidId"
 
         private lateinit var sInstance: HideDroidApplication
 
@@ -47,7 +43,6 @@ class HideDroidApplication : Application() {
     }
 
     private lateinit var mJKS: JKS
-    lateinit var realmConfigLog: RealmConfiguration
     lateinit var realmConfigPrivateTracker: RealmConfiguration
     lateinit var realmConfigDGH: RealmConfiguration
 
@@ -63,7 +58,6 @@ class HideDroidApplication : Application() {
     var serviceAnonymization: ServiceAnonymization? = null
     var selectedPrivacyLevels: MutableMap<String, AtomicInteger> = mutableMapOf()
     var selectedPrivacyLevelsLock: ReentrantLock = ReentrantLock()
-    var androidId: String = ""
 
 
     interface ServiceAnonymizationReady {
@@ -89,8 +83,6 @@ class HideDroidApplication : Application() {
                 isDebugEnabled.set(true) // TODO: set default to false
             }
         }
-
-        androidId = preferences.getString(ANDROID_ID, "")!!
 
         sharedPreferencesUpdateListener = object : MainActivity.SharedPreferencesUpdateListener {
             override fun onUpdatePreferences(isDebugEnabled: Boolean) {
@@ -134,13 +126,6 @@ class HideDroidApplication : Application() {
                 .modules(DefaultModules())
                 .build()
         Realm.setDefaultConfiguration(realmConfig)
-
-        // REALM DB FOR LOGGING
-        realmConfigLog = RealmConfiguration.Builder()
-                .name("realmlogger.realm")
-                .schemaVersion(0)
-                .modules(LoggerModule())
-                .build()
 
         // REALM DB FOR PRIVATE TRACKERS
         realmConfigPrivateTracker = RealmConfiguration.Builder()

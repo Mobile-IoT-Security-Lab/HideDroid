@@ -2,28 +2,22 @@ package it.unige.hidedroid.activity
 
 import android.Manifest
 import android.app.Activity
-import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
-import android.telephony.TelephonyManager
 import android.transition.Explode
-import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.Window
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelProvider
-import com.dave.realmdatahelper.debug.Response
 import com.github.megatronking.netbare.NetBare
 import com.github.megatronking.netbare.NetBareConfig
 import com.github.megatronking.netbare.NetBareListener
@@ -38,13 +32,11 @@ import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.single.PermissionListener
 import es.dmoral.toasty.Toasty
 import io.realm.Realm
-import io.realm.kotlin.where
 import it.unige.hidedroid.BuildConfig
 import it.unige.hidedroid.HideDroidApplication
 import it.unige.hidedroid.R
 import it.unige.hidedroid.interceptor.HttpInterceptor
 import it.unige.hidedroid.log.LoggerHideDroid
-import it.unige.hidedroid.log.LoggerToJson
 import it.unige.hidedroid.realmdatahelper.*
 import it.unige.hidedroid.service.ServiceAnonymization
 import it.unige.hidedroid.utils.RootUtil
@@ -118,30 +110,26 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
 
         // Setup Listener
         handle_vpn_button.setOnClickListener {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_PHONE_STATE), 1)
+            mNetBare = NetBare.get()
+            if (!mNetBare.isActive && !myViewModel!!.isClicked) {
+                myViewModel!!.isClicked = true
+                Toasty.success(application, "Start Incognito Mode").show()
+                changeStateButton("ON", getColor(R.color.seek_bar_progress_high))
+
+                val intent = Intent(this, ServiceAnonymization::class.java)
+                startService(intent)
             } else {
-                mNetBare = NetBare.get()
-                if (!mNetBare.isActive && !myViewModel!!.isClicked) {
-                    myViewModel!!.isClicked = true
-                    Toasty.success(application, "Start Incognito Mode").show()
-                    changeStateButton("ON", getColor(R.color.seek_bar_progress_high))
+
+                if (mNetBare.isActive && myViewModel!!.isClicked) {
+                    Toasty.error(application, "Off Incognito Mode").show()
+                    changeStateButton("OFF", getColor(R.color.seek_bar_progress_none))
+                    myViewModel!!.isClicked = false
+                    mNetBare.stop()
 
                     val intent = Intent(this, ServiceAnonymization::class.java)
-                    startService(intent)
+                    stopService(intent)
                 } else {
-
-                    if (mNetBare.isActive && myViewModel!!.isClicked) {
-                        Toasty.error(application, "Off Incognito Mode").show()
-                        changeStateButton("OFF", getColor(R.color.seek_bar_progress_none))
-                        myViewModel!!.isClicked = false
-                        mNetBare.stop()
-
-                        val intent = Intent(this, ServiceAnonymization::class.java)
-                        stopService(intent)
-                    } else {
-                        Toasty.warning(application, "You should wait").show()
-                    }
+                    Toasty.warning(application, "You should wait").show()
                 }
             }
         }
@@ -153,22 +141,6 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
         isDebugEnabled = (this.application as HideDroidApplication).isDebugEnabled
         listener = (this.application as HideDroidApplication).sharedPreferencesUpdateListener
         invalidateOptionsMenu()
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_PHONE_STATE), 1)
-        } else {
-            val telephonyManager: TelephonyManager = this.getSystemService(Application.TELEPHONY_SERVICE) as TelephonyManager
-            val phoneNumber = telephonyManager.line1Number
-            val portNumber = phoneNumber.substring(phoneNumber.length - 4, phoneNumber.length)
-            (this.application as HideDroidApplication).androidId = "emulator-$portNumber"
-            val preferences = this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
-            if (preferences.getString(HideDroidApplication.ANDROID_ID, "")!!.isEmpty()) {
-                with(preferences.edit()) {
-                    putString(HideDroidApplication.ANDROID_ID, "emulator-$portNumber")
-                    commit()
-                }
-            }
-        }
     }
 
     private fun changeStateButton(newState: String, color: Int) {
@@ -237,28 +209,19 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
         super.onResume()
     }
 
-    // TODO: remove this function and all androidId reference; they're used only to debug purpose
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    /*override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         if (requestCode == 1) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 val telephonyManager: TelephonyManager = this.getSystemService(Application.TELEPHONY_SERVICE) as TelephonyManager
                 if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
                     Log.e(TAG, "Phone State permissions not given")
                 }
-                val phoneNumber = telephonyManager.line1Number
-                val portNumber = phoneNumber.substring(phoneNumber.length - 4, phoneNumber.length)
-                (this.application as HideDroidApplication).androidId = "emulator-$portNumber"
-                val preferences = this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
-                with(preferences.edit()) {
-                    putString(HideDroidApplication.ANDROID_ID, "emulator-$portNumber")
-                    commit()
-                }
             } else {
                 Toasty.warning(this, "Grant Phone Permissions to activate Incognito Mode").show()
                 this.finish()
             }
         }
-    }
+    }*/
 
     override fun onRestart() {
         LoggerHideDroid.i(TAG, "onRestart")
@@ -277,18 +240,18 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
     }
 
     override fun onPrepareOptionsMenu(menu: Menu?): Boolean {
-        if (isDebugEnabled.get()) {
+        /*if (isDebugEnabled.get()) {
             menu?.findItem(R.id.debug_button)?.setIcon(R.drawable.ic_baseline_bug_report_enabled_27)
         } else {
             menu?.findItem(R.id.debug_button)?.setIcon(R.drawable.ic_baseline_bug_report_disabled_27)
-        }
+        }*/
         return super.onPrepareOptionsMenu(menu)
     }
 
     override fun onOptionsItemSelected(item: MenuItem?): Boolean {
         when (item!!.itemId) {
 
-            R.id.debug_button -> {
+            /*R.id.debug_button -> {
                 if (!isDebugEnabled.get()) {
                     isDebugEnabled.set(true)
                     listener.onUpdatePreferences(isDebugEnabled.get())
@@ -300,7 +263,7 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
                     item.setIcon(R.drawable.ic_baseline_bug_report_disabled_27)
                     Toasty.error(this, "Debug Mode OFF").show()
                 }
-            }
+            }*/
 
             R.id.clean_dir -> {
                 if (handle_vpn_button.text == "ON") {
@@ -312,7 +275,6 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
                             .check()
                     val alertDialogBuilder = AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
 
-                    val realmConfigLog = (this.application as HideDroidApplication).realmConfigLog
                     alertDialogBuilder
                             .setTitle("Clean Directory HideDroid")
                             .setMessage("Would you like delete all files within HideDroid directory?")
@@ -321,7 +283,6 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
                                     FOLDER_FILE!!.deleteRecursively()
                                     prepareFileAndFolders()
 
-                                    val realmDebugLogs = Realm.getInstance(realmConfigLog)
                                     val realm = Realm.getDefaultInstance()
 
                                     realm.use { realm ->
@@ -330,12 +291,12 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
                                         realm.executeTransaction { realm -> realm.delete(com.dave.realmdatahelper.hidedroid.AnalyticsRequest::class.java) }
                                     }
 
-                                    realmDebugLogs.use { realmDebugLogs ->
+                                    /*realmDebugLogs.use { realmDebugLogs ->
                                         // cancelliamo le informazioni raccolte all'interno delle tabelle Request, Error e Response
                                         realmDebugLogs.executeTransaction { realm -> realm.delete(com.dave.realmdatahelper.debug.Request::class.java) }
                                         realmDebugLogs.executeTransaction { realm -> realm.delete(com.dave.realmdatahelper.debug.Error::class.java) }
                                         realmDebugLogs.executeTransaction { realm -> realm.delete(com.dave.realmdatahelper.debug.Response::class.java) }
-                                    }
+                                    }*/
                                 }
                                 Toasty.success(application, "Directory Cleaned").show()
 
@@ -365,7 +326,7 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
 
                 }
             }
-            R.id.extractDB -> {
+            /*R.id.extractDB -> {
                 GlobalScope.launch(Dispatchers.IO) {
                     val dataExport = DataExport()
                     dataExport.exportAnalyticsRequest()
@@ -446,7 +407,7 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
                 val dataExport = DataExport()
                 dataExport.exportRealmDGH((this.application as HideDroidApplication).realmConfigDGH)
                 Toasty.success(this, "DGH Extracted successfully").show()
-            }
+            }*/
         }
         return super.onOptionsItemSelected(item)
     }
@@ -455,8 +416,8 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
         val jsonString = this.assets.open("private_params.json").bufferedReader().use { it.readText() }
         val objectList = Gson().fromJson(jsonString, Array<String>::class.java).asList()
         val interceptorHttp = HttpInterceptor.createFactory(packageManager, this.trackersMappingDomainName, this.appListTracked!!,
-                (application as HideDroidApplication).realmConfigLog, (application as HideDroidApplication).realmConfigPrivateTracker, objectList, isDebugEnabled,
-                (this.application as HideDroidApplication).serviceAnonymization!!.dataAnonymizer, (this.application as HideDroidApplication).androidId)
+                (application as HideDroidApplication).realmConfigPrivateTracker, objectList, isDebugEnabled,
+                (this.application as HideDroidApplication).serviceAnonymization!!.dataAnonymizer)
         return listOf(interceptorHttp)
     }
 

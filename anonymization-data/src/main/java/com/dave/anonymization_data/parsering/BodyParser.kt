@@ -7,9 +7,7 @@ import com.dave.anonymization_data.data.ContentEncoding
 import com.dave.anonymization_data.data.ContentType
 import com.dave.anonymization_data.data.MultidimensionalData
 import com.dave.anonymization_data.wrappers.*
-import com.dave.realmdatahelper.debug.Error
 import com.dave.realmdatahelper.hidedroid.AnalyticsRequest
-import com.dave.realmdatahelper.utils.Utils
 import io.realm.RealmConfiguration
 import org.apache.commons.fileupload.FileItem
 import org.apache.commons.fileupload.FileItemFactory
@@ -24,7 +22,6 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.regex.Matcher
 import java.util.regex.Pattern
@@ -42,7 +39,7 @@ class BodyParser {
 
     val TAG = BodyParser::class.java.name
 
-    fun parse(request: AnalyticsRequest, isDebugEnabled: AtomicBoolean, realmConfigLog: RealmConfiguration, androidId: String): MultidimensionalData {
+    fun parse(request: AnalyticsRequest, isDebugEnabled: AtomicBoolean): MultidimensionalData {
         val bodyOriginal: MutableMap<String, ValueWrapper> = mutableMapOf()
         val extraBytes = StringBuffer()
         when (val contentType = detectContentType(request.headersJson)) {
@@ -66,9 +63,9 @@ class BodyParser {
 
             ContentType.MULTIPART_FORM_DATA -> {
                 try {
-                    val boundary = prepareMultipartBody(request, isDebugEnabled, realmConfigLog, extraBytes, androidId)
+                    val boundary = prepareMultipartBody(request, isDebugEnabled, extraBytes)
                     return decodeMultipartKeyValuePairs(request, bodyOriginal, contentType, boundary,
-                            isDebugEnabled, realmConfigLog, extraBytes, androidId)
+                            isDebugEnabled, extraBytes)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error on multipart/form-data body parsing at request ${request.id}: $e")
                 }
@@ -83,7 +80,7 @@ class BodyParser {
         return MultidimensionalData()
     }
 
-    fun encodeBody(requestToEncode: MultidimensionalData, box: DataAnonymizer.Box, isDebugEnabled: AtomicBoolean, realmConfigLog: RealmConfiguration, androidId: String): ByteArray {
+    fun encodeBody(requestToEncode: MultidimensionalData, box: DataAnonymizer.Box, isDebugEnabled: AtomicBoolean): ByteArray {
         var bodyEncoded = ""
         when (requestToEncode.contentType) {
             ContentType.APPLICATION_JSON -> {
@@ -149,12 +146,12 @@ class BodyParser {
         resultBody = when (requestToEncode.contentEncoding) {
             ContentEncoding.GZIP -> {
                 compressContents(bodyEncoded.toByteArray(), "gzip", requestToEncode.packageName!!, requestToEncode.host!!,
-                        requestToEncode.headers!!, isDebugEnabled, realmConfigLog, androidId)!!
+                        requestToEncode.headers!!, isDebugEnabled)!!
             }
 
             ContentEncoding.DEFLATE -> {
                 compressContents(bodyEncoded.toByteArray(), "deflate", requestToEncode.packageName!!, requestToEncode.host!!,
-                        requestToEncode.headers!!, isDebugEnabled, realmConfigLog, androidId)!!
+                        requestToEncode.headers!!, isDebugEnabled)!!
             }
 
             ContentEncoding.NONE -> {
@@ -166,7 +163,7 @@ class BodyParser {
     }
 
     private fun compressContents(fullMessage: ByteArray, type: String, packageNameApp: String, host: String, headers: String,
-                                 isDebugEnabled: AtomicBoolean, realmConfigLog: RealmConfiguration, androidId: String): ByteArray? {
+                                 isDebugEnabled: AtomicBoolean): ByteArray? {
         var writerDeflate: InflaterOutputStream? = null
         var writerGzip: GZIPOutputStream? = null
         val compress = ByteArrayOutputStream()
@@ -182,8 +179,7 @@ class BodyParser {
             }
         } catch (e: IOException) {
             if (isDebugEnabled.get()) {
-                Error(packageNameApp, host, headers, String(fullMessage, StandardCharsets.UTF_8), "Unable to compress request: $e").insertOrUpdateError(realmConfigLog)
-                Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Unable to compress request: $e --- app: $packageNameApp", "compressingRequest", "error")
+                Log.e("errorCompressingRequest", "Unable to compress request: $e")
             }
             Log.w(TAG, "Unable to compress request", e)
         } finally {
@@ -236,8 +232,8 @@ class BodyParser {
 
     private fun decodeMultipartKeyValuePairs(request: AnalyticsRequest, bodyOriginal: MutableMap<String, ValueWrapper>,
                                              contentType: ContentType, boundary: String, isDebugEnabled: AtomicBoolean,
-                                             realmConfigLog: RealmConfiguration, extraBytes: StringBuffer, androidId: String): MultidimensionalData {
-        val parser = MultiPartStringParser(request.bodyWithoutSpecialChar, request.headersJson, boundary, request.packageName, request.host, isDebugEnabled, realmConfigLog, androidId)
+                                             extraBytes: StringBuffer): MultidimensionalData {
+        val parser = MultiPartStringParser(request.bodyWithoutSpecialChar, request.headersJson, boundary, request.packageName, request.host, isDebugEnabled)
         for (fileItem in parser.fileItems!!) {
             bodyOriginal[fileItem.fieldName] = MultipartValueWrapper(fileItem.name, fileItem.contentType, fileItem.string)
         }
@@ -245,8 +241,7 @@ class BodyParser {
                 request.httpProtocol, request.headersJson, bodyOriginal, contentType, extraBytes)
     }
 
-    private fun prepareMultipartBody(request: AnalyticsRequest, isDebugEnabled: AtomicBoolean,
-                                     realmConfigLog: RealmConfiguration, extraBytes: StringBuffer, androidId: String): String {
+    private fun prepareMultipartBody(request: AnalyticsRequest, isDebugEnabled: AtomicBoolean, extraBytes: StringBuffer): String {
         val startIndex = request.bodyWithoutSpecialChar.indexOf("--")
         var boundary = ""
         if (startIndex != -1) {
@@ -261,8 +256,7 @@ class BodyParser {
                 }
             } catch (exception: Exception) {
                 if (isDebugEnabled.get()) {
-                    Error(request.packageName, request.host, request.headersJson, request.bodyString, "Error on parsing boundary of multipart/form-data: $exception").insertOrUpdateError(realmConfigLog)
-                    Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Error on parsing boundary of multipart/form-data: $exception --- app: ${request.packageName}", "parsingRequest", "error")
+                    Log.e("errorParsingBoundary", "Error on parsing boundary of multipart/form-data: $exception")
                 }
                 exception.printStackTrace()
             }
@@ -303,8 +297,7 @@ class BodyParser {
 
     // Classe per gestire pacchetti multipart/form-data
     class MultiPartStringParser(private var postBody: String, headers: String, private var boundary: String, packageNameApp: String,
-                                host: String, isDebugEnabled: AtomicBoolean,
-                                realmConfigLogs: RealmConfiguration, androidId: String) : UploadContext {
+                                host: String, isDebugEnabled: AtomicBoolean) : UploadContext {
 
         var fileItems: MutableList<FileItem>? = null
 
@@ -316,8 +309,7 @@ class BodyParser {
                 fileItems = upload.parseRequest(this)
             } catch (exception: Exception) {
                 if (isDebugEnabled.get()) {
-                    Error(packageNameApp, host, headers, postBody.replace("[^\\x20-\\x7e]".toRegex(), ""), "Unable to decode multipart packet: $exception").insertOrUpdateError(realmConfigLogs)
-                    Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Unable to decode multipart packet: $exception --- app: $packageNameApp", "parsingRequest", "error")
+                    Log.e("errorDecodingRequest", "Unable to decode multipart packet: $exception")
                 }
             }
         }

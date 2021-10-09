@@ -4,6 +4,9 @@ import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.util.Log;
 
+import com.dave.realmdatahelper.hidedroid.ApplicationStatus;
+import com.dave.realmdatahelper.hidedroid.PackageNamePrivacyLevel;
+
 import org.apache.commons.io.FileUtils;
 import org.dom4j.Document;
 import org.dom4j.DocumentHelper;
@@ -24,12 +27,7 @@ import java.util.logging.Level;
 import apktool.module.Apktool;
 import apktool.module.SignatureManager;
 import brut.androlib.meta.MetaInfo;
-import io.realm.RealmConfiguration;
 import it.unige.hidedroid.R;
-import com.dave.realmdatahelper.hidedroid.ApplicationStatus;
-import com.dave.realmdatahelper.debug.Error;
-import com.dave.realmdatahelper.hidedroid.PackageNamePrivacyLevel;
-import com.dave.realmdatahelper.utils.Utils;
 
 public class RepackageTask extends AbstractTask {
     private final String name;
@@ -46,7 +44,7 @@ public class RepackageTask extends AbstractTask {
 
     @Override
     protected boolean process(Map<String, AtomicInteger> selectedPrivacyLevels, ReentrantLock selectedPrivacyLevelsLock, final File f,
-                              AtomicBoolean isDebugEnabled, RealmConfiguration realmConfigLog, String androidId) {
+                              AtomicBoolean isDebugEnabled) {
         File decompiledDir = new File(f.getParent(), name + "_decompiled");
         File tmpApk = new File(f.getParent(), name + "_tmp.apk");
         File signedApk = new File(f.getParent(), name + "_signed.apk");
@@ -59,8 +57,7 @@ public class RepackageTask extends AbstractTask {
             tool.decodeResources(f, decompiledDir);
         } catch (Exception e) {
             if (isDebugEnabled.get()) {
-                new Error(name, "",  "", "", "Unable to decompile the apk: " + e).insertOrUpdateError(realmConfigLog);
-                new Utils().postToTelegramServer(androidId, String.valueOf(System.currentTimeMillis() / 1000), "Unable to decompile apk due to reason: " + e + "--- app: " + name, "repackagingApp", "error");
+                Log.e("errorDecompilation", "Unable to decompile the apk: " + e);
             }
             log(Level.WARNING, "Unable to decompile the apk", e);
             return false;
@@ -71,8 +68,7 @@ public class RepackageTask extends AbstractTask {
             appAlreadyRepackaged = updateNetworkSecurityConfig(decompiledDir);
         } catch (Exception e) {
             if (isDebugEnabled.get()) {
-                new Error(name, "", "", "", "Unable to update network security configuration: " + e).insertOrUpdateError(realmConfigLog);
-                new Utils().postToTelegramServer(androidId, String.valueOf(System.currentTimeMillis() / 1000), "Unable to update network security configuration due to reason: " + e + "--- app: " + name, "repackagingApp", "error");
+                Log.e("errorUpdateNetworkConf", "Unable to update network security configuration: " + e);
             }
             log(Level.WARNING, "Unable to update network security configuration", e);
             return false;
@@ -87,8 +83,7 @@ public class RepackageTask extends AbstractTask {
                 }
             } catch (Exception e) {
                 if (isDebugEnabled.get()) {
-                    new Error(name, "", "", "", "Unable to build the new apk: " + e).insertOrUpdateError(realmConfigLog);
-                    new Utils().postToTelegramServer(androidId, String.valueOf(System.currentTimeMillis() / 1000), "Unable to build the new apk due to reason: " + e + "--- app: " + name, "repackagingApp", "error");
+                    Log.e("errorBuildingApk", "Unable to build the new apk: " + e);
                 }
                 log(Level.WARNING, "Unable to build the new apk", e);
                 tmpApk.delete();
@@ -100,8 +95,7 @@ public class RepackageTask extends AbstractTask {
                 signManager.sign(tmpApk, signedApk, minSdk);
             } catch (Exception e) {
                 if (isDebugEnabled.get()) {
-                    new Error(name, "", "", "", "Unable to sign the new apk: " + e).insertOrUpdateError(realmConfigLog);
-                    new Utils().postToTelegramServer(androidId, String.valueOf(System.currentTimeMillis() / 1000), "Unable to sign the new apk due to reason: " + e + "--- app: " + name, "repackagingApp", "error");
+                    Log.e("errorSigningApk", "Unable to sign the new apk: " + e);
                 }
                 log(Level.WARNING, "Unable to sign the new apk", e);
                 return false;
@@ -111,8 +105,7 @@ public class RepackageTask extends AbstractTask {
 
             if (!signManager.verify(signedApk)) {
                 if (isDebugEnabled.get()) {
-                    new Error(name, "", "", "", "WARNING: Unable to verify the signature of the new apk").insertOrUpdateError(realmConfigLog);
-                    new Utils().postToTelegramServer(androidId, String.valueOf(System.currentTimeMillis() / 1000), "WARNING: Unable to verify the signature of the new apk --- app: " + name, "repackagingApp", "error");
+                    Log.e("errorVerificationApk", "WARNING: Unable to verify the signature of the new apk");
                 }
                 warning("Unable to verify the signature of the new apk");
                 return false;
@@ -174,7 +167,7 @@ public class RepackageTask extends AbstractTask {
             //        String.format("Unexpected location of network security configuration: %s",
             //                networkConfigLocation));
         } else {
-            networkConfigFile = new File (outputDir, "res/xml/" + networkConfigLocation.split("/")[1] + ".xml");
+            networkConfigFile = new File(outputDir, "res/xml/" + networkConfigLocation.split("/")[1] + ".xml");
         }
 
         if (networkConfigFile.exists() && networkConfigFile.isFile()) {
@@ -229,12 +222,12 @@ public class RepackageTask extends AbstractTask {
         } else {
             // "network_security_config.xml" file not found, add it and make it trust user
             // certificates.
-            if (!networkConfigFile.getParentFile().exists()){
+            if (!networkConfigFile.getParentFile().exists()) {
                 networkConfigFile.getParentFile().mkdirs();
             }
             networkConfigFile.createNewFile();
             info("add new network security config file");
-            Document networkDoc =  DocumentHelper.createDocument();
+            Document networkDoc = DocumentHelper.createDocument();
             info("Create new document");
             Element networkRoot = (Element) networkDoc.addElement("network-security-config");
             Element t = networkRoot.addElement("base-config").addElement("trust-anchors");

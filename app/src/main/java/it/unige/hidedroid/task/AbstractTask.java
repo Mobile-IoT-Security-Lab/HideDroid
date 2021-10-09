@@ -1,6 +1,5 @@
 package it.unige.hidedroid.task;
 
-import androidx.appcompat.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Typeface;
@@ -9,6 +8,9 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
+
+import androidx.appcompat.app.AlertDialog;
+
 import java.io.File;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -17,8 +19,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 
 import brut.util.Logger;
-import es.dmoral.toasty.Toasty;
-import io.realm.RealmConfiguration;
 import it.unige.hidedroid.R;
 import it.unige.hidedroid.activity.SaveSettingApkActivity;
 import it.unige.hidedroid.view.MessageView;
@@ -38,7 +38,7 @@ public abstract class AbstractTask extends AsyncTask<AbstractTaskWrapper, CharSe
     protected Boolean doInBackground(AbstractTaskWrapper[] w1) {
         boolean success = true;
         for (File file : w1[0].files)
-            if (!process(w1[0].selectedPrivacyLevels, w1[0].selectedPrivacyLevelsLock, file, w1[0].isDebugEnabled, w1[0].realmConfigLog, w1[0].androidId))
+            if (!process(w1[0].selectedPrivacyLevels, w1[0].selectedPrivacyLevelsLock, file, w1[0].isDebugEnabled))
                 success = false;
         return success;
     }
@@ -52,7 +52,7 @@ public abstract class AbstractTask extends AsyncTask<AbstractTaskWrapper, CharSe
         customTitle.setText(getTitle());
         customTitle.setTextSize(20);
         customTitle.setTypeface(customTitle.getTypeface(), Typeface.BOLD);
-        customTitle.setPadding(20,20,10,0);
+        customTitle.setPadding(20, 20, 10, 0);
 
         //dialog = new AlertDialog.Builder(ctx, R.style.CustomAlertDialog).
         //        setCustomTitle(customTitle).
@@ -74,7 +74,7 @@ public abstract class AbstractTask extends AsyncTask<AbstractTaskWrapper, CharSe
                 setTitle(getTitle()).
                 setCancelable(false).
                 show();
-        this.progressBar = (MaterialProgressBar)promptsLoadingButton.findViewById(R.id.progress_bar_alert_dialog);
+        this.progressBar = (MaterialProgressBar) promptsLoadingButton.findViewById(R.id.progress_bar_alert_dialog);
 
 
     }
@@ -82,7 +82,7 @@ public abstract class AbstractTask extends AsyncTask<AbstractTaskWrapper, CharSe
     protected abstract int getTitle();
 
     protected abstract boolean process(Map<String, AtomicInteger> selectedPrivacyLevels, ReentrantLock selectedPrivacyLevelsLock,
-                                       File f, AtomicBoolean isDebugEnabled, RealmConfiguration realmConfigLog, String androidId);
+                                       File f, AtomicBoolean isDebugEnabled);
 
     @Override
     protected void onPostExecute(Boolean result) {
@@ -97,17 +97,17 @@ public abstract class AbstractTask extends AsyncTask<AbstractTaskWrapper, CharSe
             customTitle.setText("Task completed");
             customTitle.setTextSize(20);
             customTitle.setTypeface(customTitle.getTypeface(), Typeface.BOLD);
-            customTitle.setPadding(20,20,10,0);
+            customTitle.setPadding(20, 20, 10, 0);
 
 
             new AlertDialog.Builder(ctx, R.style.CustomAlertDialog).
                     //setView(m).
-                    setCustomTitle(customTitle).
+                            setCustomTitle(customTitle).
                     setTitle("Task Completed").
                     setPositiveButton("OK", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialogInterface, int i) {
-                            SaveSettingApkActivity activity = (SaveSettingApkActivity)ctx;
+                            SaveSettingApkActivity activity = (SaveSettingApkActivity) ctx;
                             activity.changeButtonSettings();
                         }
                     }).

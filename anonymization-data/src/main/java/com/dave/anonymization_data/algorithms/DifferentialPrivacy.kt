@@ -42,7 +42,7 @@ class DifferentialPrivacy {
         randomGenerator = Random(System.currentTimeMillis())
     }
 
-    fun anonymize(isDebugEnabled: AtomicBoolean, realmConfigLog: RealmConfiguration, realmConfigDGH: RealmConfiguration, androidId: String): Map<String, MultidimensionalData> {
+    fun anonymize(isDebugEnabled: AtomicBoolean, realmConfigDGH: RealmConfiguration): Map<String, MultidimensionalData> {
         val prInjection =  randomGenerator.nextFloat()
         val prRemove = randomGenerator.nextFloat()
         val prReplace = randomGenerator.nextFloat()
@@ -62,7 +62,7 @@ class DifferentialPrivacy {
                 while (newEventAnalytics.id == requestToAnonymize.id) {
                     newEventAnalytics = requestsWithSameHostAndPackageName!![randomGenerator.nextInt(requestsWithSameHostAndPackageName!!.size)]
                 }
-                val newEvent = BodyParser().parse(newEventAnalytics, isDebugEnabled, realmConfigLog, androidId)
+                val newEvent = BodyParser().parse(newEventAnalytics, isDebugEnabled)
                 val newBodyIterator = newEvent.body!!.iterator()
                 val fieldsToAdd = mutableMapOf<String, ValueWrapper>()
                 val fieldsToModify = mutableMapOf<String, FieldType>()
@@ -111,7 +111,7 @@ class DifferentialPrivacy {
                 while (replacedEventAnalytics.id == requestToAnonymize.id) {
                     replacedEventAnalytics = requestsWithSameHostAndPackageName!![randomGenerator.nextInt(requestsWithSameHostAndPackageName!!.size)]
                 }
-                val replacedEvent = BodyParser().parse(replacedEventAnalytics, isDebugEnabled, realmConfigLog, androidId)
+                val replacedEvent = BodyParser().parse(replacedEventAnalytics, isDebugEnabled)
                 val replacedIterator = replacedEvent.body!!.iterator()
                 val fieldsToAdd = mutableMapOf<String, ValueWrapper>()
                 val fieldsToModify = mutableMapOf<String, FieldType>()

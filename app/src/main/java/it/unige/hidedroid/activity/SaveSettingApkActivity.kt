@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.transition.Explode
+import android.util.Log
 import android.view.Window
 import android.widget.SeekBar
 import androidx.appcompat.app.AlertDialog
@@ -17,14 +18,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.FileProvider
+import com.dave.realmdatahelper.hidedroid.ApplicationStatus
+import com.dave.realmdatahelper.hidedroid.PackageNamePrivacyLevel
 import es.dmoral.toasty.Toasty
 import it.unige.hidedroid.HideDroidApplication
 import it.unige.hidedroid.R
 import it.unige.hidedroid.log.LoggerHideDroid
-import com.dave.realmdatahelper.hidedroid.ApplicationStatus
-import com.dave.realmdatahelper.debug.Error
-import com.dave.realmdatahelper.hidedroid.PackageNamePrivacyLevel
-import com.dave.realmdatahelper.utils.Utils
 import it.unige.hidedroid.realmdatahelper.UtilitiesStoreDataOnRealmDb
 import it.unige.hidedroid.task.AbstractTaskWrapper
 import it.unige.hidedroid.task.RepackageTask
@@ -41,7 +40,7 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-class SaveSettingApkActivity : AppCompatActivity(),SeekBar.OnSeekBarChangeListener {
+class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListener {
 
     private var newApkPath: String? = null
     private var apkPath: String? = null
@@ -95,7 +94,7 @@ class SaveSettingApkActivity : AppCompatActivity(),SeekBar.OnSeekBarChangeListen
         }
 
         // app already installed
-        if(isInstalledIntent!!.toBoolean()) {
+        if (isInstalledIntent!!.toBoolean()) {
             iconInstallApp.setImageDrawable(packageManager.getApplicationIcon(appPackageNameToModify))
             idPackageNameInstallApp.text = appPackageNameToModify
             apkName = getApkFileName(apkPath!!, false)
@@ -153,8 +152,7 @@ class SaveSettingApkActivity : AppCompatActivity(),SeekBar.OnSeekBarChangeListen
 
             } else if (resultCode == Activity.RESULT_FIRST_USER && appStatus != null) {
                 if (isDebugEnabled.get()) {
-                    Error(appPackageNameToModify!!, "", "", "", "App not removed. Status: $appStatus. ResultCode: $resultCode").insertOrUpdateError((this.application as HideDroidApplication).realmConfigLog)
-                    Utils().postToTelegramServer((this.application as HideDroidApplication).androidId, (System.currentTimeMillis() / 1000).toString(), "App not removed. Status: $appStatus. ResultCode: $resultCode --- app: $appPackageNameToModify!!", "appRemoving", "error")
+                    Log.e("appNotRemoved", "App not removed. Status: $appStatus. ResultCode: $resultCode")
                 }
                 LoggerHideDroid.d(TAG, "App Not Removed")
                 Toasty.error(this, "App Not Removed").show()
@@ -163,12 +161,11 @@ class SaveSettingApkActivity : AppCompatActivity(),SeekBar.OnSeekBarChangeListen
 
             } else {
                 if (isDebugEnabled.get()) {
-                    Error(appPackageNameToModify!!, "", "", "", "Unknown problem during uninstall. Status: $appStatus. ResultCode: $resultCode").insertOrUpdateError((this.application as HideDroidApplication).realmConfigLog)
-                    Utils().postToTelegramServer((this.application as HideDroidApplication).androidId, (System.currentTimeMillis() / 1000).toString(), "Unknown problem during uninstall. Status: $appStatus. ResultCode: $resultCode --- app: $appPackageNameToModify!!", "appRemoving", "debug")
+                    Log.e("errorUninstalling", "Unknown problem during uninstall. Status: $appStatus. ResultCode: $resultCode")
                 }
             }
 
-        } else if (requestCode == APP_INSTALLING ){
+        } else if (requestCode == APP_INSTALLING) {
             val appStatus = UtilitiesStoreDataOnRealmDb.getStatusAppFromPackageName(appPackageNameToModify!!)
             if (resultCode == Activity.RESULT_OK && appStatus != null) {
                 LoggerHideDroid.d(TAG, "App Modified Installed Succesfully")
@@ -195,14 +192,13 @@ class SaveSettingApkActivity : AppCompatActivity(),SeekBar.OnSeekBarChangeListen
                 AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
                         .setMessage(R.string.dialog_message)
                         ?.setTitle(R.string.dialog_title)
-                        ?.setPositiveButton(R.string.dialog_button) { _, _ ->}
+                        ?.setPositiveButton(R.string.dialog_button) { _, _ -> }
                         ?.create()
                         ?.show()
 
             } else if (resultCode == Activity.RESULT_FIRST_USER && appStatus != null) {
                 if (isDebugEnabled.get()) {
-                    Error(appPackageNameToModify!!, "", "", "", "App not installed. Status: $appStatus. ResultCode: $resultCode").insertOrUpdateError((this.application as HideDroidApplication).realmConfigLog)
-                    Utils().postToTelegramServer((this.application as HideDroidApplication).androidId, (System.currentTimeMillis() / 1000).toString(), "App not installed. Status: $appStatus. ResultCode: $resultCode --- app: $appPackageNameToModify!!", "appInstalling", "error")
+                    Log.e("appNotInstalled", "App not installed. Status: $appStatus. ResultCode: $resultCode")
                 }
                 LoggerHideDroid.d(TAG, "App Not Installed")
                 appStatus.update(ApplicationStatus(installed = false, isRepackaged = true))
@@ -227,8 +223,7 @@ class SaveSettingApkActivity : AppCompatActivity(),SeekBar.OnSeekBarChangeListen
 
             } else {
                 if (isDebugEnabled.get()) {
-                    Error(appPackageNameToModify!!, "", "", "", "Unknown problem during app install. Status: $appStatus. ResultCode: $resultCode").insertOrUpdateError((this.application as HideDroidApplication).realmConfigLog)
-                    Utils().postToTelegramServer((this.application as HideDroidApplication).androidId, (System.currentTimeMillis() / 1000).toString(), "Unknown problem during app install. Status: $appStatus. ResultCode: $resultCode --- app: $appPackageNameToModify!!", "appInstalling", "debug")
+                    Log.e("errorAppInstalling", "Unknown problem during app install. Status: $appStatus. ResultCode: $resultCode")
                 }
             }
         }
@@ -250,7 +245,7 @@ class SaveSettingApkActivity : AppCompatActivity(),SeekBar.OnSeekBarChangeListen
                     AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
                             .setMessage(R.string.dialog_message)
                             ?.setTitle(R.string.dialog_title)
-                            ?.setPositiveButton(R.string.dialog_button) { _, _ ->}
+                            ?.setPositiveButton(R.string.dialog_button) { _, _ -> }
                             ?.create()
                             ?.show()
                     Toasty.success(this, "The application is already suitable to be tracked").show()
@@ -338,7 +333,7 @@ class SaveSettingApkActivity : AppCompatActivity(),SeekBar.OnSeekBarChangeListen
                 AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
                         .setMessage(R.string.dialog_message)
                         ?.setTitle(R.string.dialog_title)
-                        ?.setPositiveButton(R.string.dialog_button) { _, _ ->}
+                        ?.setPositiveButton(R.string.dialog_button) { _, _ -> }
                         ?.create()
                         ?.show()
                 Toasty.success(this, "Privacy Settings Updated").show()
@@ -410,20 +405,19 @@ class SaveSettingApkActivity : AppCompatActivity(),SeekBar.OnSeekBarChangeListen
         notificationManager.notify(notifyID, startNotification.build())
 
         val files = Array(1) { File(apkPath) }
-        val wrapper = AbstractTaskWrapper((this.application as HideDroidApplication).selectedPrivacyLevels, (this.application as HideDroidApplication).selectedPrivacyLevelsLock,
-                files, isDebugEnabled, (this.application as HideDroidApplication).realmConfigLog, (this.application as HideDroidApplication).androidId)
+        val wrapper = AbstractTaskWrapper((this.application as HideDroidApplication).selectedPrivacyLevels, (this.application as HideDroidApplication).selectedPrivacyLevelsLock, files, isDebugEnabled)
         RepackageTask(this, apkName).execute(wrapper)
 
         var appStatus = UtilitiesStoreDataOnRealmDb.getStatusAppFromPackageName(appPackageNameToModify!!)
-        if (appStatus!= null) {
+        if (appStatus != null) {
             appStatus.update(com.dave.realmdatahelper.hidedroid.ApplicationStatus(packageName = appPackageNameToModify!!, isInRepackaging = true))
         } else {
             appStatus = com.dave.realmdatahelper.hidedroid.ApplicationStatus(packageName = appPackageNameToModify!!, isInRepackaging = true)
             appStatus.storeStateApp()
         }
-            /*
-        UtilitiesStoreDataOnDb.storeStateApp(packageName = appPackageNameToModify!!, isInRepackaging = true)
-        */
+        /*
+    UtilitiesStoreDataOnDb.storeStateApp(packageName = appPackageNameToModify!!, isInRepackaging = true)
+    */
     }
 
     private fun getApkFileName(path: String, isSigned: Boolean): String? {
@@ -469,7 +463,7 @@ class SaveSettingApkActivity : AppCompatActivity(),SeekBar.OnSeekBarChangeListen
                             // Uri.fromParts("package", pi.packageName, null))
                             //startActivity(intent)
                             var appStatus = UtilitiesStoreDataOnRealmDb.getStatusAppFromPackageName(appPackageNameToModify!!)
-                            if (appStatus!=null) {
+                            if (appStatus != null) {
                                 appStatus!!.update(com.dave.realmdatahelper.hidedroid.ApplicationStatus(packageName = appPackageNameToModify!!, isInRemoving = true, isInRepackaging = true))
                             } else {
                                 appStatus = com.dave.realmdatahelper.hidedroid.ApplicationStatus(packageName = appPackageNameToModify!!, isInRemoving = true, isInRepackaging = true)
@@ -517,7 +511,7 @@ class SaveSettingApkActivity : AppCompatActivity(),SeekBar.OnSeekBarChangeListen
             applicationStatus.update(com.dave.realmdatahelper.hidedroid.ApplicationStatus(isInInstalling = true))
         else
             applicationStatus = com.dave.realmdatahelper.hidedroid.ApplicationStatus(appPackageNameToModify!!, isInInstalling = true)
-            applicationStatus.storeStateApp()
+        applicationStatus.storeStateApp()
         //UtilitiesStoreDataOnDb.storeStateApp(packageName = appPackageNameToModify!!,
         //    isInInstalling = true)
 
@@ -540,7 +534,7 @@ class SaveSettingApkActivity : AppCompatActivity(),SeekBar.OnSeekBarChangeListen
     }
 
     private fun updateSeekBar(privacyLevel: Int) {
-        when(privacyLevel) {
+        when (privacyLevel) {
             0 -> {
                 textViewPrivacyLevel.text = "NONE"
                 privacySeekBar.progressDrawable = getDrawable(R.drawable.seek_bar_none)
@@ -568,7 +562,7 @@ class SaveSettingApkActivity : AppCompatActivity(),SeekBar.OnSeekBarChangeListen
     }
 
     private fun setPrivacyLevelSeekBar() {
-        if (appPrivacySetting!=null && appPrivacySetting!!.isInstalled) {
+        if (appPrivacySetting != null && appPrivacySetting!!.isInstalled) {
             privacySeekBar!!.progress = appPrivacySetting!!.privacyLevel
             privacyLevel = appPrivacySetting!!.privacyLevel
             updateSeekBar(privacyLevel)

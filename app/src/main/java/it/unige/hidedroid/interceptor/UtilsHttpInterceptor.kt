@@ -5,9 +5,6 @@ import com.github.megatronking.netbare.http.HttpRequestChain
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import io.netty.buffer.ByteBuf
-import io.realm.RealmConfiguration
-import com.dave.realmdatahelper.debug.Error
-import com.dave.realmdatahelper.utils.Utils
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -19,17 +16,17 @@ import java.util.zip.InflaterInputStream
 
 object UtilsHttpInterceptor {
 
-    fun removeAllNonUtf8Char(original:String): String {
+    fun removeAllNonUtf8Char(original: String): String {
         val regex = Regex("[^\\n\\r\\t\\p{Print}]")
         return regex.replace(original, "")
     }
 
-    fun fromMapToString(map:MutableMap<String?, List<String>?>?):String? {
+    fun fromMapToString(map: MutableMap<String?, List<String>?>?): String? {
         if (map == null) {
             return null
         }
         val gson = Gson()
-        val type: Type = object : TypeToken<MutableMap<String?, List<String>?>>() {}.getType()
+        val type: Type = object : TypeToken<MutableMap<String?, List<String>?>>() {}.type
         return gson.toJson(map, type)
     }
 
@@ -38,19 +35,19 @@ object UtilsHttpInterceptor {
             return null
         }
         val gson = Gson()
-        val type: Type = object : TypeToken<MutableMap<String?, List<String>?>?>() {}.getType()
+        val type: Type = object : TypeToken<MutableMap<String?, List<String>?>?>() {}.type
         return gson.fromJson<MutableMap<String?, List<String>?>>(mapString, type)
     }
 
-    fun parsingContentTypeApplicationXwwwFormUrlEncode(body:String): MutableMap<String, String>{
+    fun parsingContentTypeApplicationXwwwFormUrlEncode(body: String): MutableMap<String, String> {
         var map = mutableMapOf<String, String>()
-        body.split("&").forEach{
+        body.split("&").forEach {
             map[it.split("=")[0]] = it.split("=")[1]
         }
         return map
     }
 
-    fun parsingContentTypeMultipartFormData(body:String, boundary:String):MutableMap<String, List<String>>{
+    fun parsingContentTypeMultipartFormData(body: String, boundary: String): MutableMap<String, List<String>> {
         /*
             --3i2ndDfv2rTHiSisAbouNdArYfORhtTPEefj3q2f
             Content-Disposition: form-data; name="installer_package"
@@ -67,8 +64,8 @@ object UtilsHttpInterceptor {
             val patternParameterValue = "\n.*\n--".toRegex()
             val parameterComplexValue = patternParameterValue.find(value)
             if (parameterComplex?.value != null && parameterComplexValue != null) {
-                val nameParameter = parameterComplex.value.split("=")[1].replace("\"","")
-                val valueParameter = parameterComplexValue.value.replace("--","").trim()
+                val nameParameter = parameterComplex.value.split("=")[1].replace("\"", "")
+                val valueParameter = parameterComplexValue.value.replace("--", "").trim()
                 println("$nameParameter=$valueParameter")
                 mapMultipart[nameParameter] = listOf(valueParameter)
             }
@@ -79,29 +76,29 @@ object UtilsHttpInterceptor {
 
     fun extractContentTypeFromHeaderString(header: String): String? {
         val mapHeader = fromStringToMap(header)
-        var contentType:String? = null
-        if (mapHeader != null && mapHeader.containsKey("Content-Type")){
+        var contentType: String? = null
+        if (mapHeader != null && mapHeader.containsKey("Content-Type")) {
             contentType = mapHeader["Content-Type"]!![0].split(";")[0]
         }
         return contentType
     }
 
-    fun extractBoundary(header: String):String? {
+    fun extractBoundary(header: String): String? {
         val mapHeader = fromStringToMap(header)
-        var boundary:String? = null
+        var boundary: String? = null
         if (mapHeader != null && mapHeader.containsKey("Content-Type")) {
             boundary = mapHeader["Content-Type"]!![0].split(";")[1].split("=")[1]
         }
         return boundary
     }
 
-    fun isAnalyticsRequest(buffer:ByteArray): Boolean{
+    fun isAnalyticsRequest(buffer: ByteArray): Boolean {
         val bufferString = String(buffer, StandardCharsets.UTF_8)
         return bufferString.contains("event", true)
                 .or(bufferString.contains("events", true))
     }
 
-    fun isNotLoginRequest(request: HttpRequestChain, buffer:ByteArray): Boolean{
+    fun isNotLoginRequest(request: HttpRequestChain, buffer: ByteArray): Boolean {
         return request.request().host() != "graph.facebook.com" && !isAnalyticsRequest(buffer)
     }
 
@@ -119,7 +116,7 @@ object UtilsHttpInterceptor {
     }
 
     // Funzione per decomprimere pacchetti GZIP e DEFLATE
-    fun decompressContents(fullMessage: ByteArray, type: String, packageNameApp: String, host: String, headers: String, isDebugEnabled: AtomicBoolean, realmConfigLogs: RealmConfiguration, androidId: String): ByteArray? {
+    fun decompressContents(fullMessage: ByteArray, type: String, packageNameApp: String, host: String, headers: String, isDebugEnabled: AtomicBoolean): ByteArray? {
         var fullMessage = fullMessage
         var reader: InflaterInputStream? = null
         val uncompressed: ByteArrayOutputStream
@@ -138,8 +135,7 @@ object UtilsHttpInterceptor {
             fullMessage = uncompressed.toByteArray()
         } catch (e: IOException) {
             if (isDebugEnabled.get()) {
-                Error(packageNameApp, host, headers, String(fullMessage, StandardCharsets.UTF_8).replace("[^\\x20-\\x7e]".toRegex(), ""), "Unable to decompress request: $e").insertOrUpdateError(realmConfigLogs)
-                Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Unable to decompress request: $e --- app: $packageNameApp", "decompressingRequest", "error")
+                Log.e("errorDecompressingContent", "Unable to decompress request: $e")
             }
             Log.w(HttpInterceptor.TAG, "Unable to decompress request", e)
         } finally {

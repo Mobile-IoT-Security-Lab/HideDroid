@@ -4,10 +4,7 @@ import android.content.pm.PackageManager
 import android.util.Log
 import com.dave.anonymization_data.anonymizationthreads.DataAnonymizer
 import com.dave.realmdatahelper.debug.PrivateTracker
-import com.dave.realmdatahelper.debug.Request
-import com.dave.realmdatahelper.debug.Response
 import com.dave.realmdatahelper.hidedroid.AnalyticsRequest
-import com.dave.realmdatahelper.utils.Utils
 import com.github.megatronking.netbare.http.HttpIndexedInterceptor
 import com.github.megatronking.netbare.http.HttpInterceptorFactory
 import com.github.megatronking.netbare.http.HttpRequestChain
@@ -19,15 +16,11 @@ import io.realm.kotlin.where
 import it.unige.hidedroid.interceptor.UtilsHttpInterceptor.fromMapToString
 import it.unige.hidedroid.interceptor.UtilsHttpInterceptor.isAnalyticsRequest
 import it.unige.hidedroid.log.LoggerHideDroid
-import it.unige.hidedroid.realmdatahelper.*
+import it.unige.hidedroid.realmdatahelper.TrackersMappingDomainName
+import it.unige.hidedroid.realmdatahelper.UtilitiesStoreDataOnRealmDb
 import java.net.URLDecoder
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
-import java.text.DateFormat
-import java.text.SimpleDateFormat
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -35,13 +28,11 @@ import java.util.concurrent.atomic.AtomicLong
 class HttpInterceptor(var packageManager: PackageManager,
                       var trackersMappingDomainName: TrackersMappingDomainName,
                       var listAppToMonitoring: MutableList<String>,
-                      var realmConfigLog: RealmConfiguration,
                       var realmConfigPrivateTracker: RealmConfiguration,
                       var listPrivateFields: List<String>,
                       var isDebugEnabled: AtomicBoolean,
                       var idPacket: AtomicLong,
-                      var dataAnonymizer: DataAnonymizer,
-                      var androidId: String) : HttpIndexedInterceptor() {
+                      var dataAnonymizer: DataAnonymizer) : HttpIndexedInterceptor() {
 
     companion object {
         val TAG = HttpInterceptor::class.java.name
@@ -54,12 +45,10 @@ class HttpInterceptor(var packageManager: PackageManager,
         fun createFactory(packageManager: PackageManager,
                           trackersMappingDomainName: TrackersMappingDomainName,
                           listAppToMonitoring: MutableList<String>,
-                          realmConfigLog: RealmConfiguration,
                           realmConfigPrivateTracker: RealmConfiguration,
                           listPrivateFields: List<String>,
                           isDebugEnabled: AtomicBoolean,
-                          dataAnonymizer: DataAnonymizer,
-                          androidId: String): HttpInterceptorFactory {
+                          dataAnonymizer: DataAnonymizer): HttpInterceptorFactory {
 
             var idPacket = AtomicLong(0)
             val realm = Realm.getDefaultInstance()
@@ -73,7 +62,7 @@ class HttpInterceptor(var packageManager: PackageManager,
             }
 
             LoggerHideDroid.d(TAG, "I'm doing createFactory in HttpInterceptor")
-            return HttpInterceptorFactory { HttpInterceptor(packageManager, trackersMappingDomainName, listAppToMonitoring, realmConfigLog, realmConfigPrivateTracker, listPrivateFields, isDebugEnabled, idPacket, dataAnonymizer, androidId) }
+            return HttpInterceptorFactory { HttpInterceptor(packageManager, trackersMappingDomainName, listAppToMonitoring, realmConfigPrivateTracker, listPrivateFields, isDebugEnabled, idPacket, dataAnonymizer) }
         }
     }
 
@@ -138,7 +127,7 @@ class HttpInterceptor(var packageManager: PackageManager,
                                         val startIndex = byteBufferTrimmed.indexOf(31)
                                         if (startIndex != -1 && byteBufferTrimmed[startIndex + 1].toInt() == -117) {
                                             val temp = (byteBufferTrimmed).copyOfRange(startIndex, byteBufferTrimmed.size)
-                                            val content = UtilsHttpInterceptor.decompressContents(temp, "gzip", packageNameApp, host, requestHeadersString, isDebugEnabled, realmConfigLog, androidId)
+                                            val content = UtilsHttpInterceptor.decompressContents(temp, "gzip", packageNameApp, host, requestHeadersString, isDebugEnabled)
                                             try {
                                                 bodyString = URLDecoder.decode(String(content!!, StandardCharsets.UTF_8).replace("[^\\x20-\\x7e]".toRegex(), ""), "UTF-8")
                                                 if (requestHeadersString.contains("application/x-www-form-urlencoded")) {
@@ -149,8 +138,7 @@ class HttpInterceptor(var packageManager: PackageManager,
                                                 }
                                             } catch (exception: Exception) {
                                                 if (isDebugEnabled.get()) {
-                                                    com.dave.realmdatahelper.debug.Error(packageNameApp, host, requestHeadersString, String(byteBuffer), "Error on gzip decompressing: $exception").insertOrUpdateError(realmConfigLog)
-                                                    Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Error on gzip decompressing: $exception --- app: $packageNameApp", "decompressingRequest", "error")
+                                                    Log.e("errorGzipDecompression", "Error on gzip decompressing: $exception")
                                                 }
                                                 exception.printStackTrace()
                                             }
@@ -168,21 +156,20 @@ class HttpInterceptor(var packageManager: PackageManager,
                                         bodyWithoutNotAsciiChar = bodyString
                                     } catch (exception: Exception) {
                                         if (isDebugEnabled.get()) {
-                                            com.dave.realmdatahelper.debug.Error(packageNameApp, host, requestHeadersString, String(byteBuffer), "Error on flurry decoding: $exception").insertOrUpdateError(realmConfigLog)
-                                            Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Error on flurry decoding: $exception --- app: $packageNameApp", "decodingRequest", "error")
+                                            Log.e("errorFlurryDecoding", "Error on flurry decoding: $exception")
                                         }
                                         exception.printStackTrace()
                                     }
                                 }
-                                requestHeadersString?.contains("\"Content-Encoding\":[\"deflate\"]")!! -> {
+                                requestHeadersString.contains("\"Content-Encoding\":[\"deflate\"]") -> {
                                     val byteBufferTrimmed = UtilsHttpInterceptor.trim(byteBuffer, contentLength)
                                     if (byteBufferTrimmed!!.isNotEmpty()) {
                                         // Il magic bytes di un DEFLATE è 0x78 = 120 .
                                         val startIndex = byteBufferTrimmed.indexOf(120)
                                         val secondMagicByte = listOf<Int>(1, 94, -100, -38, 32, 125, -69, -7)
                                         if (startIndex != -1 && secondMagicByte.contains(byteBufferTrimmed[startIndex + 1].toInt())) {
-                                            val temp = (byteBufferTrimmed!!).copyOfRange(startIndex, byteBufferTrimmed!!.size)
-                                            val content = UtilsHttpInterceptor.decompressContents(temp, "deflate", packageNameApp, host, requestHeadersString, isDebugEnabled, realmConfigLog, androidId)
+                                            val temp = (byteBufferTrimmed).copyOfRange(startIndex, byteBufferTrimmed.size)
+                                            val content = UtilsHttpInterceptor.decompressContents(temp, "deflate", packageNameApp, host, requestHeadersString, isDebugEnabled)
                                             try {
                                                 bodyString = URLDecoder.decode(String(content!!, StandardCharsets.UTF_8).replace("[^\\x20-\\x7e]".toRegex(), ""), "UTF-8")
                                                 if (requestHeadersString.contains("application/x-www-form-urlencoded")) {
@@ -193,8 +180,7 @@ class HttpInterceptor(var packageManager: PackageManager,
                                                 }
                                             } catch (exception: Exception) {
                                                 if (isDebugEnabled.get()) {
-                                                    com.dave.realmdatahelper.debug.Error(packageNameApp, host, requestHeadersString, String(byteBuffer), "Error on deflate decompressing: $exception").insertOrUpdateError(realmConfigLog)
-                                                    Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Error on deflate decompressing: $exception --- app: $packageNameApp", "decompressingRequest", "error")
+                                                    Log.e("errorDeflateDecompressing", "Error on deflate decompressing: $exception")
                                                 }
                                                 exception.printStackTrace()
                                             }
@@ -209,8 +195,7 @@ class HttpInterceptor(var packageManager: PackageManager,
                                         bodyString = URLDecoder.decode(data, "UTF-8")
                                     } catch (e: Exception) {
                                         if (isDebugEnabled.get()) {
-                                            com.dave.realmdatahelper.debug.Error(packageNameApp, host, requestHeadersString, String(byteBuffer), "Error on standard decoding: $e").insertOrUpdateError(realmConfigLog)
-                                            Utils().postToTelegramServer(androidId, (System.currentTimeMillis() / 1000).toString(), "Error on standard decoding: $e --- app: $packageNameApp", "decodingRequest", "error")
+                                            Log.e("errorStandardDecoding", "Error on standard decoding: $e")
                                         }
                                         e.printStackTrace()
                                     }
@@ -240,16 +225,6 @@ class HttpInterceptor(var packageManager: PackageManager,
                             if (!isTracked && !isPrivate) {
                                 body = bodyWithoutNotAsciiChar
                                 chain.process(buffer)
-                            }
-
-                            if (isDebugEnabled.get()) {
-                                val request = Request(
-                                        host,
-                                        body,
-                                        isTracked,
-                                        isPrivate
-                                )
-                                request.insertOrUpdateRequest(realmConfigLog)
                             }
 
                             Log.d(TAG, "$host, $packageNameApp,  " +
@@ -350,9 +325,6 @@ class HttpInterceptor(var packageManager: PackageManager,
         if (isTracked || isPrivate) {
             if (index == 0) {
                 Log.d(TAG, "Response from ${chain.response().host()}:\n${String(buffer.array(), StandardCharsets.UTF_8)}")
-                if (isDebugEnabled.get()) {
-                    Response(chain.response().host(), "", "response captured from interceptor", chain.response().code().toString()).insertOrUpdateResponse(realmConfigLog)
-                }
             }
         }
     }
