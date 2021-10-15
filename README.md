@@ -16,7 +16,7 @@ Finally, the anonymized data are sent to the expected recipients by mimicking th
 
 ## ❱ Publication
 
-More details about **HideDroid** can be found in the paper [You can’t always get what you want: towards user-controlled privacy on Android](link).
+More details about **HideDroid** can be found in the paper [You can’t always get what you want: towards user-controlled privacy on Android](https://arxiv.org/abs/2106.02483).
 
 We submit it for consideration to [IEEE TDSC journal](https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=8858).
 
