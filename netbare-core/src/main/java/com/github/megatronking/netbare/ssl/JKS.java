@@ -15,10 +15,10 @@
  */
 package com.github.megatronking.netbare.ssl;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.Environment;
 import android.security.KeyChain;
 import android.util.Log;
 
@@ -39,17 +39,15 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.StringWriter;
 import java.io.Writer;
-
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
-
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.Base64;
-import java.util.HashMap;
+import java.util.Enumeration;
+import java.util.Objects;
 
 /**
  * A java keystore to manage root certificate.
@@ -171,10 +169,28 @@ public class JKS {
      * Whether the certificate with given alias has been installed.
      *
      * @param context Any context.
-     * @param alias Key store alias.
+     * @param alias   Key store alias.
      * @return True if the certificate has been installed.
      */
     public static boolean isInstalled(Context context, String alias) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P + 2) {
+            try {
+                KeyStore ks = KeyStore.getInstance("AndroidCAStore");
+                if (ks != null) {
+                    ks.load(null, null);
+                    Enumeration<String> aliases = ks.aliases();
+                    while (aliases.hasMoreElements()) {
+                        String aliasToCheck = aliases.nextElement();
+                        java.security.cert.X509Certificate cert = (java.security.cert.X509Certificate) ks.getCertificate(aliasToCheck);
+                        if (cert.getIssuerDN().getName().contains(alias))
+                            return true;
+                    }
+                }
+                return false;
+            } catch (IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
+                e.printStackTrace();
+            }
+        }
         return new File(context.getCacheDir(),
                 alias + KEY_JKS_FILE_EXTENSION).exists();
     }
@@ -183,8 +199,8 @@ public class JKS {
      * Install the self-signed root certificate.
      *
      * @param context Any context.
-     * @param name Key chain name.
-     * @param alias Key store alias.
+     * @param name    Key chain name.
+     * @param alias   Key store alias.
      * @throws IOException If an IO error has occurred.
      */
     public static void install(AppCompatActivity context, String name, String alias)
@@ -196,6 +212,24 @@ public class JKS {
                     alias + KEY_PEM_FILE_EXTENSION));
             keychain = new byte[is.available()];
             int len = is.read(keychain);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P + 2) {
+                File hideDroidFolder = new File(Environment.getExternalStorageDirectory(), "HideDroid");
+                if (!hideDroidFolder.exists()) {
+                    hideDroidFolder.mkdir();
+                }
+                File f = new File(hideDroidFolder, "HideDroidSample.crt");
+                if (!f.exists()) {
+                    f.createNewFile();
+                }
+                try (FileOutputStream fos = new FileOutputStream(f)) {
+                    fos.write(keychain);
+                    fos.flush();
+                    return;
+                } catch (FileNotFoundException ex) {
+                    ex.printStackTrace();
+                    return;
+                }
+            }
             if (len != keychain.length) {
                 throw new IOException("Install JKS failed, len: " + len);
             }
@@ -213,17 +247,16 @@ public class JKS {
         context.startActivityForResult(intent, REQUEST_CODE_CERTIFICATE_INSTALLED);
     }
 
-    private static byte[] getDigest( byte[] toHash ) {
+    private static byte[] getDigest(byte[] toHash) {
         MessageDigest md;
 
         try {
-            md = MessageDigest.getInstance( "SHA1" );
-        }
-        catch ( NoSuchAlgorithmException nsa ) {
-            throw new RuntimeException( "no such algorithm" );
+            md = MessageDigest.getInstance("SHA1");
+        } catch (NoSuchAlgorithmException nsa) {
+            throw new RuntimeException("no such algorithm");
         }
 
-        return md.digest( toHash );
+        return md.digest(toHash);
     }
 
     public String getPemCACertificate() throws KeyStoreException {
@@ -258,13 +291,13 @@ public class JKS {
     public String getHashSystemCACertificate() throws KeyStoreException {
         KeyStore ks = KeyStore.getInstance(new CertificateGenerator().keyStoreType());
         FileInputStream is = null;
-        String nameSystemCertificate =null;
+        String nameSystemCertificate = null;
         try {
             is = new FileInputStream(aliasFile(JKS.KEY_STORE_FILE_EXTENSION));
             ks.load(is, password());
             X509Certificate cert = (X509Certificate) ks.getCertificate(alias());
             String subjectHashOld = getSubjectHashOld(cert);
-            nameSystemCertificate = subjectHashOld +".0";
+            nameSystemCertificate = subjectHashOld + ".0";
             //Log.d(TAG, "Name system CA: "+nameSystemCertificate.toString());
 
         } catch (FileNotFoundException e) {
@@ -286,9 +319,9 @@ public class JKS {
     private String getSubjectHashOld(X509Certificate x509Cert) throws IOException {
         try {
             byte[] digest = MessageDigest.getInstance("MD5").digest(x509Cert.getSubjectX500Principal().getEncoded());
-            byte[] hashBytes = truncatedHash( digest, 4 );
+            byte[] hashBytes = truncatedHash(digest, 4);
             String subjectHashOld = getStringCertificate(hashBytes);
-            Log.d(TAG, subjectHashOld );
+            Log.d(TAG, subjectHashOld);
             return subjectHashOld;
 
         } catch (NoSuchAlgorithmException e) {
@@ -297,26 +330,26 @@ public class JKS {
     }
 
 
-    private byte[] truncatedHash( byte[] hash, int truncatedLength) {
-        if ( truncatedLength < 1 || hash.length < 1 )
+    private byte[] truncatedHash(byte[] hash, int truncatedLength) {
+        if (truncatedLength < 1 || hash.length < 1)
             return new byte[0];
 
         byte[] result = new byte[truncatedLength];
 
-        for ( int i = 0; i < truncatedLength; ++i )
+        for (int i = 0; i < truncatedLength; ++i)
             result[truncatedLength - 1 - i] = hash[i];
 
         return result;
     }
 
-    private String getStringCertificate(  byte[] bytes ) {
+    private String getStringCertificate(byte[] bytes) {
         StringBuffer encodedName = new StringBuffer();
-        for ( byte b: bytes ) {
+        for (byte b : bytes) {
             // byte to unsigned int
-            Log.d(TAG, String.format( "%02X ", b & 0xFF ) );
+            Log.d(TAG, String.format("%02X ", b & 0xFF));
             encodedName.append(String.format("%02X ", b & 0xFF));
         }
-        return encodedName.toString().replace(" ","").toLowerCase();
+        return encodedName.toString().replace(" ", "").toLowerCase();
     }
 
 }

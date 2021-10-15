@@ -8,6 +8,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
@@ -111,25 +112,22 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
         // Setup Listener
         handle_vpn_button.setOnClickListener {
             mNetBare = NetBare.get()
-            if (!mNetBare.isActive && !myViewModel!!.isClicked) {
-                myViewModel!!.isClicked = true
-                Toasty.success(application, "Start Incognito Mode").show()
-                changeStateButton("ON", getColor(R.color.seek_bar_progress_high))
-
-                val intent = Intent(this, ServiceAnonymization::class.java)
-                startService(intent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P + 2 && !mNetBare.isActive && !myViewModel!!.isClicked && !JKS.isInstalled(this, HideDroidApplication.JSK_ALIAS)) {
+                stopIncognitoMode("Certificate Not Installed")
             } else {
-
-                if (mNetBare.isActive && myViewModel!!.isClicked) {
-                    Toasty.error(application, "Off Incognito Mode").show()
-                    changeStateButton("OFF", getColor(R.color.seek_bar_progress_none))
-                    myViewModel!!.isClicked = false
-                    mNetBare.stop()
+                if (!mNetBare.isActive && !myViewModel!!.isClicked) {
+                    myViewModel!!.isClicked = true
+                    Toasty.success(application, "Start Incognito Mode").show()
+                    changeStateButton("ON", getColor(R.color.seek_bar_progress_high))
 
                     val intent = Intent(this, ServiceAnonymization::class.java)
-                    stopService(intent)
+                    startService(intent)
                 } else {
-                    Toasty.warning(application, "You should wait").show()
+                    if (mNetBare.isActive && myViewModel!!.isClicked) {
+                        stopIncognitoMode("Off Incognito Mode")
+                    } else {
+                        Toasty.warning(application, "You should wait").show()
+                    }
                 }
             }
         }
@@ -141,6 +139,16 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
         isDebugEnabled = (this.application as HideDroidApplication).isDebugEnabled
         listener = (this.application as HideDroidApplication).sharedPreferencesUpdateListener
         invalidateOptionsMenu()
+    }
+
+    private fun stopIncognitoMode(message: String) {
+        Toasty.error(application, message).show()
+        changeStateButton("OFF", getColor(R.color.seek_bar_progress_none))
+        myViewModel!!.isClicked = false
+        mNetBare.stop()
+
+        val intent = Intent(this, ServiceAnonymization::class.java)
+        stopService(intent)
     }
 
     private fun changeStateButton(newState: String, color: Int) {
