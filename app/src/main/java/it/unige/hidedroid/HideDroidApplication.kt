@@ -110,8 +110,19 @@ class HideDroidApplication : Application() {
 
         sInstance = this
         // create certificate
-        mJKS = JKS(this, JSK_ALIAS, JSK_ALIAS.toCharArray(), JSK_ALIAS, JSK_ALIAS,
-                JSK_ALIAS, JSK_ALIAS, JSK_ALIAS)
+        val sp: SharedPreferences = this.getSharedPreferences("configuration", MODE_PRIVATE)
+        val value = sp.getString("instanceAppId", "")
+        val instanceAppId: String
+        if (value == null || value == "") {
+            val editor = sp.edit();
+            instanceAppId = System.currentTimeMillis().toString()
+            editor.putString("instanceAppId", instanceAppId)
+            editor.commit()
+        } else {
+            instanceAppId = value
+        }
+        val alias = JSK_ALIAS + "_" + instanceAppId
+        mJKS = JKS(this, alias, alias.toCharArray(), alias, alias, alias, alias, alias)
 
         NetBare.get().attachApplication(this, BuildConfig.DEBUG)
 

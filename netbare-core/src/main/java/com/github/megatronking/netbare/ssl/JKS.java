@@ -17,12 +17,14 @@ package com.github.megatronking.netbare.ssl;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Environment;
 import android.security.KeyChain;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.github.megatronking.netbare.NetBareLog;
@@ -47,7 +49,6 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
-import java.util.Objects;
 
 /**
  * A java keystore to manage root certificate.
@@ -60,6 +61,7 @@ public class JKS {
     public static final String KEY_STORE_FILE_EXTENSION = ".p12";
     public static final String KEY_PEM_FILE_EXTENSION = ".pem";
     public static final String KEY_JKS_FILE_EXTENSION = ".jks";
+    public static final String CRT_FILE_EXTENSION = ".crt";
     public static final String BEGIN_CERT = "-----BEGIN CERTIFICATE-----";
     public static final String END_CERT = "-----END CERTIFICATE-----";
     public final static String LINE_SEPARATOR = System.getProperty("line.separator");
@@ -173,26 +175,33 @@ public class JKS {
      * @return True if the certificate has been installed.
      */
     public static boolean isInstalled(Context context, String alias) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P + 2) {
-            try {
-                KeyStore ks = KeyStore.getInstance("AndroidCAStore");
-                if (ks != null) {
-                    ks.load(null, null);
-                    Enumeration<String> aliases = ks.aliases();
-                    while (aliases.hasMoreElements()) {
-                        String aliasToCheck = aliases.nextElement();
-                        java.security.cert.X509Certificate cert = (java.security.cert.X509Certificate) ks.getCertificate(aliasToCheck);
-                        if (cert.getIssuerDN().getName().contains(alias))
-                            return true;
-                    }
-                }
-                return false;
-            } catch (IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
-                e.printStackTrace();
-            }
-        }
         return new File(context.getCacheDir(),
                 alias + KEY_JKS_FILE_EXTENSION).exists();
+    }
+
+    public static boolean isInstalledOnDevice(Context context, String alias) {
+        try {
+            SharedPreferences sp = context.getSharedPreferences("configuration", Context.MODE_PRIVATE);
+            String value = sp.getString("instanceAppId", "");
+            if (value == null || value.equals("")) {
+                return false;
+            }
+            String issuer = alias + "_" + value;
+            KeyStore ks = KeyStore.getInstance("AndroidCAStore");
+            if (ks != null) {
+                ks.load(null, null);
+                Enumeration<String> aliases = ks.aliases();
+                while (aliases.hasMoreElements()) {
+                    String aliasToCheck = aliases.nextElement();
+                    java.security.cert.X509Certificate cert = (java.security.cert.X509Certificate) ks.getCertificate(aliasToCheck);
+                    if (cert.getIssuerDN().getName().contains(issuer))
+                        return true;
+                }
+            }
+        } catch (IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     /**
@@ -200,38 +209,47 @@ public class JKS {
      *
      * @param context Any context.
      * @param name    Key chain name.
-     * @param alias   Key store alias.
      * @throws IOException If an IO error has occurred.
      */
-    public static void install(AppCompatActivity context, String name, String alias)
-            throws IOException {
-        byte[] keychain;
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    public static void install(AppCompatActivity context, String name, String alias) throws IOException {
         FileInputStream is = null;
+        byte[] keychain;
+        SharedPreferences sp = context.getSharedPreferences("configuration", Context.MODE_PRIVATE);
+        String value = sp.getString("instanceAppId", "");
+        if (value == null || value.equals("")) {
+            return;
+        }
+        String crtName = alias + "_" + value;
         try {
-            is = new FileInputStream(new File(context.getCacheDir(),
-                    alias + KEY_PEM_FILE_EXTENSION));
+            is = new FileInputStream(new File(context.getCacheDir(), crtName + KEY_PEM_FILE_EXTENSION));
             keychain = new byte[is.available()];
             int len = is.read(keychain);
+            if (len != keychain.length) {
+                throw new IOException("Install JKS failed, len: " + len);
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P + 2) {
                 File hideDroidFolder = new File(Environment.getExternalStorageDirectory(), "HideDroid");
                 if (!hideDroidFolder.exists()) {
                     hideDroidFolder.mkdir();
                 }
-                File f = new File(hideDroidFolder, "HideDroidSample.crt");
+                File f = new File(hideDroidFolder, alias + CRT_FILE_EXTENSION);
                 if (!f.exists()) {
                     f.createNewFile();
                 }
                 try (FileOutputStream fos = new FileOutputStream(f)) {
                     fos.write(keychain);
                     fos.flush();
-                    return;
-                } catch (FileNotFoundException ex) {
-                    ex.printStackTrace();
+                }
+                File internalCert = new File(context.getCacheDir(), alias + KEY_JKS_FILE_EXTENSION);
+                if (!internalCert.exists()) {
+                    internalCert.createNewFile();
+                }
+                try (FileOutputStream fos = new FileOutputStream(internalCert)) {
+                    fos.write(keychain);
+                    fos.flush();
                     return;
                 }
-            }
-            if (len != keychain.length) {
-                throw new IOException("Install JKS failed, len: " + len);
             }
         } finally {
             NetBareUtils.closeQuietly(is);
@@ -240,7 +258,7 @@ public class JKS {
         Intent intent = new Intent(context, CertificateInstallActivity.class);
         intent.putExtra(KeyChain.EXTRA_CERTIFICATE, keychain);
         intent.putExtra(KeyChain.EXTRA_NAME, name);
-        intent.putExtra(CertificateInstallActivity.EXTRA_ALIAS, alias);
+        intent.putExtra(CertificateInstallActivity.EXTRA_ALIAS, crtName);
         if (!(context instanceof AppCompatActivity)) {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         }
