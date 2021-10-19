@@ -21,7 +21,7 @@ android {
         applicationId "it.unige.hidedroid"
         minSdkVersion 23
         targetSdkVersion 28  // Do NOT upgrade!
-        versionCode 2
+        versionCode 3
         versionName "1.2"
     }
     kotlinOptions {
