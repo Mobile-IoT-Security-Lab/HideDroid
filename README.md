@@ -12,7 +12,7 @@ Then, it anonymizes the personal and device data using a generalization techniqu
 
 Finally, the anonymized data are sent to the expected recipients by mimicking the original network calls.
 
-**Note**: HideDroid app is compatible with all Android versions before to 11. Since version 11, the system does not enable apps to directly install new CA certificates. Nonetheless, it requires the user to explicitly install them, making the HideDroid app inoperable. This limitation will be removed in a future release of the app.
+**Note**: HideDroid app has been compatible with all Android versions (also the newest ones 11 and 12) since the release [1.2](https://github.com/Mobile-IoT-Security-Lab/HideDroid/releases/tag/1.2). With Android versions 11 and 12, the HideDroid app requires that the user manually installs the CA certificate. Indeed, the HideDroid app generates the certificate and place it inside the SdCard storage, so the user can manually install it on its device. This operation is performed only for Android versions 11 and 12 due to new constraints on the programmatic installation of CA certificates, and it is performed programmatically in the other Android versions
 
 ## ❱ Publication
 
