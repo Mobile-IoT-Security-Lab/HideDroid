@@ -5,6 +5,8 @@
 </p>
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/dado1513)
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate?hosted_button_id=EQHVHAG9SS8DW)
+
 
 **HideDroid** is an Android app that allows the per-app anonymization of collected personal data according to a privacy level chosen by the user.
 
