@@ -78,7 +78,7 @@ class ServiceAnonymization: Service() {
             LoggerHideDroid.d(TAG, "ServiceAnonymization is active: $isActive")
         }
 
-        listener?.onActivate(this)
+        listener.onActivate(this)
         return START_STICKY
     }
 

@@ -8,6 +8,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
@@ -104,25 +105,33 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
 
         (this.application as HideDroidApplication).serviceAnonymizationReady = object : HideDroidApplication.ServiceAnonymizationReady {
             override fun onReadyService() {
-                prepareNetBare()
+                prepareNetBare(false)
             }
         }
 
         // Setup Listener
         handle_vpn_button.setOnClickListener {
             mNetBare = NetBare.get()
-            if (!mNetBare.isActive && !myViewModel!!.isClicked) {
+            val certificateInstalled = JKS.isInstalledOnDevice(this, HideDroidApplication.JSK_ALIAS)
+            if (!mNetBare.isActive && !myViewModel!!.isClicked && certificateInstalled) {
                 myViewModel!!.isClicked = true
                 Toasty.success(application, "Start Incognito Mode").show()
-                changeStateButton("ON", getColor(R.color.seek_bar_progress_high))
+                changeStateButton("ON", getColor(R.color.seek_bar_progress_high), false)
 
                 val intent = Intent(this, ServiceAnonymization::class.java)
                 startService(intent)
             } else {
+                if (!certificateInstalled) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P + 2) {
+                        Toasty.warning(application, "Install Certificate From SdCard").show()
+                    }
+                    changeStateButton("NOT READY", getColor(R.color.seek_bar_progress_medium), true)
+                    myViewModel!!.isClicked = false
 
-                if (mNetBare.isActive && myViewModel!!.isClicked) {
+                    prepareNetBare(true)
+                } else if (mNetBare.isActive && myViewModel!!.isClicked) {
                     Toasty.error(application, "Off Incognito Mode").show()
-                    changeStateButton("OFF", getColor(R.color.seek_bar_progress_none))
+                    changeStateButton("OFF", getColor(R.color.seek_bar_progress_none), false)
                     myViewModel!!.isClicked = false
                     mNetBare.stop()
 
@@ -143,21 +152,34 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
         invalidateOptionsMenu()
     }
 
-    private fun changeStateButton(newState: String, color: Int) {
-        this.runOnUiThread {
-            handle_vpn_button.text = newState
-            handle_vpn_button.setBackgroundColor(color)
+    private fun changeStateButton(newState: String, color: Int, warning_button: Boolean) {
+        if (warning_button) {
+            this.runOnUiThread {
+                handle_vpn_button.text = newState
+                handle_vpn_button.textSize = 40.0F
+                handle_vpn_button.setBackgroundColor(color)
+            }
+        } else {
+            this.runOnUiThread {
+                handle_vpn_button.text = newState
+                handle_vpn_button.textSize = 48.0F
+                handle_vpn_button.setBackgroundColor(color)
+            }
         }
     }
 
-    private fun prepareNetBare() {
-        if (!JKS.isInstalled(this, HideDroidApplication.JSK_ALIAS)) {
+    private fun prepareNetBare(checkForInstallCA: Boolean) {
+        if (!JKS.isInstalledOnDevice(this, HideDroidApplication.JSK_ALIAS)) {
             try {
                 JKS.install(this, HideDroidApplication.JSK_ALIAS, HideDroidApplication.JSK_ALIAS)
                 myViewModel!!.isClicked = false
             } catch (e: IOException) {
                 Toasty.error(this, e.toString()).show()
             }
+            return
+        }
+
+        if (checkForInstallCA) {
             return
         }
 
@@ -183,11 +205,12 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
 
     override fun onResume() {
         mNetBare = NetBare.get()
-        if (mNetBare.isActive && myViewModel!!.isClicked) {
-            changeStateButton("ON", getColor(R.color.seek_bar_progress_high))
-
+        if (!JKS.isInstalledOnDevice(this, HideDroidApplication.JSK_ALIAS)) {
+            changeStateButton("NOT READY", getColor(R.color.seek_bar_progress_medium), true)
+        } else if (mNetBare.isActive && myViewModel!!.isClicked) {
+            changeStateButton("ON", getColor(R.color.seek_bar_progress_high), false)
         } else {
-            changeStateButton("OFF", getColor(R.color.seek_bar_progress_none))
+            changeStateButton("OFF", getColor(R.color.seek_bar_progress_none), false)
         }
 
         GlobalScope.launch(Dispatchers.IO) {
@@ -226,10 +249,12 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
     override fun onRestart() {
         LoggerHideDroid.i(TAG, "onRestart")
         mNetBare = NetBare.get()
-        if (mNetBare.isActive && myViewModel!!.isClicked) {
-            changeStateButton("ON", getColor(R.color.seek_bar_progress_high))
+        if (!JKS.isInstalledOnDevice(this, HideDroidApplication.JSK_ALIAS)) {
+            changeStateButton("NOT READY", getColor(R.color.seek_bar_progress_medium), true)
+        } else if (mNetBare.isActive && myViewModel!!.isClicked) {
+            changeStateButton("ON", getColor(R.color.seek_bar_progress_high), false)
         } else {
-            changeStateButton("OFF", getColor(R.color.seek_bar_progress_none))
+            changeStateButton("OFF", getColor(R.color.seek_bar_progress_none), false)
         }
         super.onRestart()
     }
@@ -309,13 +334,13 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
             }
 
             R.id.installCACertificate -> {
-                if (RootUtil.isDeviceRooted && JKS.isInstalled(this, HideDroidApplication.JSK_ALIAS) && Utilities.isVersionGreaterThanNougat()) {
+                if (RootUtil.isDeviceRooted && JKS.isInstalledOnDevice(this, HideDroidApplication.JSK_ALIAS) && Utilities.isVersionGreaterThanNougat()) {
                     // if device is rooted and certificate is already installed install system ca certificate
                     installSystemCA()
-                } else if (!JKS.isInstalled(this, HideDroidApplication.JSK_ALIAS) && Utilities.isVersionGreaterThanNougat()) {
+                } else if (!JKS.isInstalledOnDevice(this, HideDroidApplication.JSK_ALIAS) && Utilities.isVersionGreaterThanNougat()) {
                     // if certificate is not already installed && the version is greater than nougat
                     JKS.install(this, HideDroidApplication.JSK_ALIAS, HideDroidApplication.JSK_ALIAS)
-                } else if (JKS.isInstalled(this, HideDroidApplication.JSK_ALIAS) ||
+                } else if (JKS.isInstalledOnDevice(this, HideDroidApplication.JSK_ALIAS) ||
                         !Utilities.isVersionGreaterThanNougat() ||
                         this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE).getBoolean(getString(R.string.key_root_certificate_preference), false)) {
                     // already done everiting
@@ -427,7 +452,7 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
 
         if (isDeviceRooted) {
             if (Utilities.isVersionGreaterThanNougat() &&
-                    JKS.isInstalled(this, HideDroidApplication.JSK_ALIAS)) {
+                    JKS.isInstalledOnDevice(this, HideDroidApplication.JSK_ALIAS)) {
                 val alertDialogBuilder = AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
 
                 alertDialogBuilder
@@ -468,7 +493,7 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
             LoggerHideDroid.i(TAG, "SERVICE VPN STARTED")
             myViewModel!!.isClicked = true
         })
-        changeStateButton("ON", getColor(R.color.seek_bar_progress_high))
+        changeStateButton("ON", getColor(R.color.seek_bar_progress_high), false)
     }
 
     override fun onServiceStopped() {
@@ -476,14 +501,14 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
             LoggerHideDroid.i(TAG, "SERVICE VPN STOPPED")
             myViewModel!!.isClicked = false
         })
-        changeStateButton("OFF", getColor(R.color.seek_bar_progress_none))
+        changeStateButton("OFF", getColor(R.color.seek_bar_progress_none), false)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode == Activity.RESULT_OK && requestCode == REQUEST_CODE_PREPARE) {
             // ok start vpn
-            prepareNetBare()
+            prepareNetBare(false)
         } else if (resultCode == Activity.RESULT_CANCELED && requestCode == REQUEST_CODE_PREPARE) {
             // code prepare vpn canceled
             myViewModel!!.isClicked = false
