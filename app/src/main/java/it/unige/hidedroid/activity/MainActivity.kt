@@ -8,6 +8,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
@@ -121,7 +122,9 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
                 startService(intent)
             } else {
                 if (!certificateInstalled) {
-                    Toasty.warning(application, "Install Certificate From SdCard").show()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P + 2) {
+                        Toasty.warning(application, "Install Certificate From SdCard").show()
+                    }
                     changeStateButton("NOT READY", getColor(R.color.seek_bar_progress_medium), true)
                     myViewModel!!.isClicked = false
 
