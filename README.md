@@ -6,9 +6,6 @@
 > An Android App for preserving user privacy 
 
 
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/dado1513)
-[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate?hosted_button_id=EQHVHAG9SS8DW)
-
 
 **HideDroid** is an Android app that allows the per-app anonymization of collected personal data according to a privacy level chosen by the user.
 
@@ -63,8 +60,6 @@ This software was developed for research purposes at the Computer Security Lab (
 
 </div>
 
-
-
 ## ❱ Team
 
 * [Davide Caputo](https://csec.it/people/davide_caputo/) - Ph.D Student & Developer
@@ -73,3 +68,8 @@ This software was developed for research purposes at the Computer Security Lab (
 * [Gabriel Claudiu Georgiu](https://github.com/ClaudiuGeorgiu) - Developer
 * [Luca Verderame](https://csec.it/people/luca_verderame/) - Postdoctoral Researcher
 * [Alessio Merlo](https://csec.it/people/alessio_merlo/) - Faculty Member
+
+## ❱ Support Us
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/dado1513)
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate?hosted_button_id=EQHVHAG9SS8DW)
