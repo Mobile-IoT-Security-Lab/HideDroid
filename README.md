@@ -5,7 +5,10 @@
 # HideDroid 
 > An Android App for preserving user privacy 
 
-<img src="https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/api/v1/shield/it.unige.hidedroid&label=IzzyOnDroid&cacheSeconds=86400">
+[![platform](https://img.shields.io/badge/platform-Android-yellow.svg)](https://www.android.com)
+[![API](https://img.shields.io/badge/API-23%2B-brightgreen.svg?style=plastic)](https://android-arsenal.com/api?level=23)
+[![IzzyOnDroid](https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/api/v1/shield/it.unige.hidedroid&label=IzzyOnDroid&cacheSeconds=86400)](https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/api/v1/shield/it.unige.hidedroid&label=IzzyOnDroid&cacheSeconds=86400)
+
 
 **HideDroid** is an Android app that allows the per-app anonymization of collected personal data according to a privacy level chosen by the user.
 
