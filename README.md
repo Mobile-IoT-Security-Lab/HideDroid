@@ -1,8 +1,10 @@
+<p align="center">
+<img width="100" height="100"  src="app/src/main/res/mipmap-xhdpi/ic_incognito_android_hat_circle.png">
+</p>
+
 # HideDroid 
 > An Android App for preserving user privacy 
-<p align="center">
-<img width="80" height="80"  src="app/src/main/res/mipmap-xhdpi/ic_incognito_android_hat_circle.png">
-</p>
+
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/dado1513)
 [![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate?hosted_button_id=EQHVHAG9SS8DW)
