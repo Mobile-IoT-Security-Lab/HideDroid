@@ -28,7 +28,7 @@ Finally, the anonymized data are sent to the expected recipients by mimicking th
 
 </div>
 
-HideDroid app has been compatible with all Android versions (also the newest ones 11 and 12) since the release [1.2](https://github.com/Mobile-IoT-Security-Lab/HideDroid/releases/tag/1.2). 
+ :warning:  HideDroid app has been compatible with all Android versions (also the newest ones 11 and 12) since the release [1.2](https://github.com/Mobile-IoT-Security-Lab/HideDroid/releases/tag/1.2). 
 With Android versions 11 and 12, the HideDroid app requires that the user manually installs the CA certificate. Indeed, the HideDroid app generates the certificate and place it inside the SdCard storage, so the user can manually install it on its device. 
 This operation is performed only for Android versions 11 and 12 due to new constraints on the programmatic installation of CA certificates, and it is performed programmatically in the other Android versions
 
@@ -88,7 +88,7 @@ This software was developed for research purposes at the Computer Security Lab (
 
 <div align="center">
 
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/dado1513)
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/dado1513)  
 [![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate?hosted_button_id=EQHVHAG9SS8DW)
 
 </div>
