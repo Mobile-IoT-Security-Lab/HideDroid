@@ -1,11 +1,11 @@
 <p align="center">
-<img width="120" height="120"  src="app/src/main/res/mipmap-xhdpi/ic_incognito_android_hat_circle.png">
+<img width="200" height="200"  src="app/src/main/res/mipmap-xxxhdpi/ic_incognito_android_hat_circle.png">
 </p>
 
 # HideDroid 
 > An Android App for preserving user privacy 
 
-
+<img src="https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/api/v1/shield/it.unige.hidedroid&label=IzzyOnDroid&cacheSeconds=86400">
 
 **HideDroid** is an Android app that allows the per-app anonymization of collected personal data according to a privacy level chosen by the user.
 
