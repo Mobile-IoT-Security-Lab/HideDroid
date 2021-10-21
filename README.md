@@ -20,11 +20,13 @@ Finally, the anonymized data are sent to the expected recipients by mimicking th
 
 
 ## ❱ Compatibility with Android versions
-
+<div align="center">
+      
 | **5.x** or lower   |**6.0**             |**7.x**             | **8.x**            |**9.0**             |**10.0**            |**11.0**            | **12.0**           |
 |:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|
 | :trollface:        |:heavy_check_mark:  |:heavy_check_mark:  |:heavy_check_mark:  |:heavy_check_mark:  |:heavy_check_mark:  |:warning:           | :warning:          |
 
+</div>
 
 HideDroid app has been compatible with all Android versions (also the newest ones 11 and 12) since the release [1.2](https://github.com/Mobile-IoT-Security-Lab/HideDroid/releases/tag/1.2). 
 With Android versions 11 and 12, the HideDroid app requires that the user manually installs the CA certificate. Indeed, the HideDroid app generates the certificate and place it inside the SdCard storage, so the user can manually install it on its device. 
