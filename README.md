@@ -1,5 +1,5 @@
 <p align="center">
-<img width="100" height="100"  src="app/src/main/res/mipmap-xhdpi/ic_incognito_android_hat_circle.png">
+<img width="120" height="120"  src="app/src/main/res/mipmap-xhdpi/ic_incognito_android_hat_circle.png">
 </p>
 
 # HideDroid 
