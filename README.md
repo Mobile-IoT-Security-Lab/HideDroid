@@ -18,7 +18,17 @@ Then, it anonymizes the personal and device data using a generalization techniqu
 
 Finally, the anonymized data are sent to the expected recipients by mimicking the original network calls.
 
-**Note**: HideDroid app has been compatible with all Android versions (also the newest ones 11 and 12) since the release [1.2](https://github.com/Mobile-IoT-Security-Lab/HideDroid/releases/tag/1.2). With Android versions 11 and 12, the HideDroid app requires that the user manually installs the CA certificate. Indeed, the HideDroid app generates the certificate and place it inside the SdCard storage, so the user can manually install it on its device. This operation is performed only for Android versions 11 and 12 due to new constraints on the programmatic installation of CA certificates, and it is performed programmatically in the other Android versions
+
+## ❱ Compatibility with Android versions
+
+| **5.x** or lower   |**6.0**             |**7.x**             | **8.x**            |**9.0**             |**10.0**            |**11.0**            | **12.0**           |
+|:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|
+| :trollface:        |:heavy_check_mark:  |:heavy_check_mark:  |:heavy_check_mark:  |:heavy_check_mark:  |:heavy_check_mark:  |:warning:           | :warning:          |
+
+
+HideDroid app has been compatible with all Android versions (also the newest ones 11 and 12) since the release [1.2](https://github.com/Mobile-IoT-Security-Lab/HideDroid/releases/tag/1.2). 
+With Android versions 11 and 12, the HideDroid app requires that the user manually installs the CA certificate. Indeed, the HideDroid app generates the certificate and place it inside the SdCard storage, so the user can manually install it on its device. 
+This operation is performed only for Android versions 11 and 12 due to new constraints on the programmatic installation of CA certificates, and it is performed programmatically in the other Android versions
 
 ## ❱ Publication
 
