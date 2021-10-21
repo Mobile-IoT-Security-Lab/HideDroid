@@ -42,7 +42,7 @@ We submit it for consideration to [IEEE TDSC journal](https://ieeexplore.ieee.or
 
 ## ❱ Contributing
 
-Questions, bug reports and pull requests are welcome on GitHub at [https://github.com/Mobile-IoT-Security-Lab/HideDroid](https://github.com/Mobile-IoT-Security-Lab/motan).
+Questions, bug reports and pull requests are welcome on GitHub at [https://github.com/Mobile-IoT-Security-Lab/HideDroid](https://github.com/Mobile-IoT-Security-Lab/HideDroid).
 
 
 ## ❱ License
