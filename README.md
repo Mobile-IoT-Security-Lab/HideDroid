@@ -65,7 +65,7 @@ Depending on your needs, you must choose one of them and follow its policies. A 
 
 ## ❱ Credits
 
-This software was developed for research purposes at the Computer Security Lab ([CSecLab](https://csec.it/)), hosted at DIBRIS, University of Genoa.
+This software was developed for research purposes at the Computer Security Lab ([CSecLab](https://csec.it/)), hosted at DIBRIS, University of Genova.
 
 
 <div align="center"
