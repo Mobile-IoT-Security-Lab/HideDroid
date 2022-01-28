@@ -35,18 +35,18 @@ This operation is performed only for Android versions 11 and 12 due to new const
 ## ❱ Publication
 
 More details about **HideDroid** can be found in the paper [You can’t always get what you want: towards user-controlled privacy on Android](https://arxiv.org/abs/2106.02483):
+
 ```BibTex
-@misc{caputo2021cant,
-      title={You can't always get what you want: towards user-controlled privacy on Android}, 
-      author={Davide Caputo and Francesco Pagano and Giovanni Bottino and Luca Verderame and Alessio Merlo},
-      year={2021},
-      eprint={2106.02483},
-      archivePrefix={arXiv},
-      primaryClass={cs.CR}
+@ARTICLE{caputo2021cant,
+  author={Caputo, Davide and Pagano, Francesco and Bottino, Giovanni and Verderame, Luca and Merlo, Alessio},
+  journal={IEEE Transactions on Dependable and Secure Computing}, 
+  title={You Can't Always Get What You Want: Towards User-Controlled Privacy on Android}, 
+  year={2022},
+  doi={10.1109/TDSC.2022.3146020}
 }
 ```
 
-We submit it for consideration to [IEEE TDSC journal](https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=8858).
+Accepted on [IEEE TDSC journal](https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=8858).
 
 ## ❱ App Screenshots 
 
