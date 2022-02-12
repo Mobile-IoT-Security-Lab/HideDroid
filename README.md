@@ -34,7 +34,7 @@ This operation is performed only for Android versions 11 and 12 due to new const
 
 ## ❱ Publication
 
-More details about **HideDroid** can be found in the paper [You can’t always get what you want: towards user-controlled privacy on Android](https://arxiv.org/abs/2106.02483):
+More details about **HideDroid** can be found in the paper [You can’t always get what you want: towards user-controlled privacy on Android](https://ieeexplore.ieee.org/abstract/document/9694493):
 
 ```BibTex
 @ARTICLE{caputo2021cant,
