@@ -92,3 +92,7 @@ This software was developed for research purposes at the Computer Security Lab (
 [![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate?hosted_button_id=EQHVHAG9SS8DW)
 
 </div>
+
+## ❱ Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Mobile-IoT-Security-Lab/HideDroid&type=Date)](https://star-history.com/#Mobile-IoT-Security-Lab/HideDroid&Date)
