@@ -95,4 +95,8 @@ This software was developed for research purposes at the Computer Security Lab (
 
 ## ❱ Star History
 
+<div align="center">
+
 [![Star History Chart](https://api.star-history.com/svg?repos=Mobile-IoT-Security-Lab/HideDroid&type=Date)](https://star-history.com/#Mobile-IoT-Security-Lab/HideDroid&Date)
+
+</div>
