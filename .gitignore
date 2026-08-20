@@ -17,3 +17,7 @@
 script-diagrams/venv/*
 **/*.realm
 **/__pychache__/*
+app/x86/*
+app/arm/*
+app/fat/*
+build-error.log
