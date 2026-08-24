@@ -76,6 +76,12 @@ class BodyParser {
                 return MultidimensionalData(request.id, request.packageName, request.host, request.method, request.path,
                         request.httpProtocol, request.headersJson, bodyOriginal, contentType, extraBytes)
             }
+
+            ContentType.NONE -> {
+                bodyOriginal["body"] = ValueWrapper(request.bodyString)
+                return MultidimensionalData(request.id, request.packageName, request.host, request.method, request.path,
+                        request.httpProtocol, request.headersJson, bodyOriginal, contentType, extraBytes)
+            }
         }
         return MultidimensionalData()
     }

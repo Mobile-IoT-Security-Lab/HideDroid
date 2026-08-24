@@ -22,6 +22,9 @@ import android.os.Bundle;
 import android.security.KeyChain;
 import android.util.Log;
 
+import androidx.activity.ComponentActivity;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 
 import com.github.megatronking.netbare.NetBareLog;
@@ -35,11 +38,33 @@ import java.io.IOException;
  * @author Megatron King
  * @since 2018-11-10 21:18
  */
-public class CertificateInstallActivity extends Activity {
+public class CertificateInstallActivity extends ComponentActivity {
 
-    private static final int REQUEST_CODE_INSTALL = 1;
     public static final String EXTRA_ALIAS = "jks_alias";
     private static final String TAG = CertificateInstallActivity.class.getName();
+
+    private final ActivityResultLauncher<Intent> mInstallLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                Intent intent = new Intent();
+                if (result.getResultCode() == Activity.RESULT_OK) {
+                    File jsk = new File(getCacheDir(),
+                            getIntent().getStringExtra(EXTRA_ALIAS) + JKS.KEY_JKS_FILE_EXTENSION);
+                    intent.putExtra("INSTALLED_CERTIFICATE", true);
+                    setResult(Activity.RESULT_OK, intent);
+                    Log.d(TAG, "Certificate user installed");
+                    try {
+                        if (!jsk.exists() && !jsk.createNewFile()) {
+                            throw new IOException("Create jks file failed.");
+                        }
+                    } catch (IOException e) {
+                        intent.putExtra("INSTALLED_CERTIFICATE", false);
+                        setResult(Activity.RESULT_FIRST_USER, intent);
+                        NetBareLog.wtf(e);
+                    }
+                }
+                finish();
+            });
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -52,34 +77,11 @@ public class CertificateInstallActivity extends Activity {
         Intent intent = KeyChain.createInstallIntent();
         intent.putExtras(bundle);
         try {
-            startActivityForResult(intent, REQUEST_CODE_INSTALL);
+            mInstallLauncher.launch(intent);
         } catch (ActivityNotFoundException e) {
             NetBareLog.e("Unable to start certificate installer.");
             finish();
         }
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        Intent intent = new Intent();
-        if (requestCode == REQUEST_CODE_INSTALL && resultCode == RESULT_OK) {
-            File jsk = new File(getCacheDir(),
-                    getIntent().getStringExtra(EXTRA_ALIAS) + JKS.KEY_JKS_FILE_EXTENSION);
-            intent.putExtra("INSTALLED_CERTIFICATE", true);
-            setResult(RESULT_OK, intent);
-            Log.d(TAG, "Certificate user installed");
-            try {
-                if(!jsk.exists() && !jsk.createNewFile()) {
-                    throw new IOException("Create jks file failed.");
-                }
-            } catch (IOException e) {
-                intent.putExtra("INSTALLED_CERTIFICATE", false);
-                setResult(RESULT_FIRST_USER, intent);
-                NetBareLog.wtf(e);
-            }
-        }
-        finish();
     }
 
     @Override

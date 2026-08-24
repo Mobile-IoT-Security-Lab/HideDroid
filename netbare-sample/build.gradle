@@ -2,7 +2,8 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion 28
+    namespace 'com.github.megatronking.netbare.sample'
+    compileSdkVersion 33
     defaultConfig {
         applicationId "com.github.megatronking.netbare.sample"
         minSdkVersion 21
@@ -26,13 +27,14 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'com.android.support:appcompat-v7:28.0.0'
     implementation 'com.android.support.constraint:constraint-layout:1.1.3'
+    implementation 'androidx.activity:activity-ktx:1.2.0'
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
     implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.3.11'
 
     implementation 'com.google.code.gson:gson:2.8.2'
-    implementation 'me.weishu:free_reflection:1.2.0'
+    implementation 'com.github.tiann:FreeReflection:3.2.2'
 
     // NetBare libraries
     implementation project(':netbare-core')

@@ -89,10 +89,10 @@ public final class NetBare {
      * Prepare to establish a VPN connection. This method returns {@code null} if the VPN
      * application is already prepared or if the user has previously consented to the VPN
      * application. Otherwise, it returns an {@link Intent} to a system activity. The application
-     * should launch the activity using {@link Activity#startActivityForResult} to get itself
-     * prepared.
+     * should launch the activity using an {@link androidx.activity.result.ActivityResultLauncher}
+     * registered with {@link androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult}.
      *
-     * @return The intent to call using {@link Activity#startActivityForResult}.
+     * @return The intent to launch via the Activity Result API.
      */
     public Intent prepare() {
         return VpnService.prepare(mApp);

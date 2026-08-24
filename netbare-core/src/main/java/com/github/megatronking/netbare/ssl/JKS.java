@@ -19,10 +19,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
-import android.os.Environment;
 import android.security.KeyChain;
 import android.util.Log;
 
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
@@ -66,7 +66,6 @@ public class JKS {
     public static final String END_CERT = "-----END CERTIFICATE-----";
     public final static String LINE_SEPARATOR = System.getProperty("line.separator");
     public static final String TAG = JKS.class.getName();
-    public static final int REQUEST_CODE_CERTIFICATE_INSTALLED = 30;
 
     private final File keystoreDir;
     private final String alias;
@@ -212,7 +211,8 @@ public class JKS {
      * @throws IOException If an IO error has occurred.
      */
     @RequiresApi(api = Build.VERSION_CODES.M)
-    public static void install(AppCompatActivity context, String name, String alias) throws IOException {
+    public static void install(AppCompatActivity context, String name, String alias,
+                               ActivityResultLauncher<Intent> launcher) throws IOException {
         FileInputStream is = null;
         byte[] keychain;
         SharedPreferences sp = context.getSharedPreferences("configuration", Context.MODE_PRIVATE);
@@ -229,7 +229,10 @@ public class JKS {
                 throw new IOException("Install JKS failed, len: " + len);
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P + 2) {
-                File hideDroidFolder = new File(Environment.getExternalStorageDirectory(), "HideDroid");
+                File hideDroidFolder = new File(context.getExternalFilesDir(null), "HideDroid");
+                if (hideDroidFolder == null) {
+                    throw new IOException("External files directory not available");
+                }
                 if (!hideDroidFolder.exists()) {
                     hideDroidFolder.mkdir();
                 }
@@ -259,10 +262,7 @@ public class JKS {
         intent.putExtra(KeyChain.EXTRA_CERTIFICATE, keychain);
         intent.putExtra(KeyChain.EXTRA_NAME, name);
         intent.putExtra(CertificateInstallActivity.EXTRA_ALIAS, crtName);
-        if (!(context instanceof AppCompatActivity)) {
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        }
-        context.startActivityForResult(intent, REQUEST_CODE_CERTIFICATE_INSTALLED);
+        launcher.launch(intent);
     }
 
     private static byte[] getDigest(byte[] toHash) {

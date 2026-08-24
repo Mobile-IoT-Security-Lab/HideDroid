@@ -9,15 +9,17 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.ApplicationInfo.FLAG_SYSTEM
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.AsyncTask
+import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.provider.Settings
 import android.util.Log
 import android.view.Menu
 import android.view.View
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.PermissionToken
@@ -25,7 +27,6 @@ import com.karumi.dexter.listener.PermissionDeniedResponse
 import com.karumi.dexter.listener.PermissionGrantedResponse
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.single.PermissionListener
-import io.realm.RealmConfiguration
 import it.unige.hidedroid.HideDroidApplication
 import it.unige.hidedroid.R
 import it.unige.hidedroid.animators.Animators
@@ -33,12 +34,16 @@ import it.unige.hidedroid.log.LoggerHideDroid
 import it.unige.hidedroid.models.AppItemRepacking
 import it.unige.hidedroid.models.ListAppsItemRepacking
 import it.unige.hidedroid.realmdatahelper.UtilitiesStoreDataOnRealmDb
+import it.unige.hidedroid.utils.HideDroidStorage
+import it.unige.hidedroid.utils.InstallActions
+import it.unige.hidedroid.utils.TrackingActions
 import it.unige.hidedroid.view.AppAdapterRepacking
-import kotlinx.android.synthetic.main.activity_repacking.*
+import it.unige.hidedroid.view.TrackedFilter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.zhanghai.android.materialprogressbar.MaterialProgressBar
 import java.io.File
-import java.util.*
-import java.util.regex.Pattern
 
 
 class SelectAppActivity() : AppCompatActivity(), PermissionListener {
@@ -56,13 +61,31 @@ class SelectAppActivity() : AppCompatActivity(), PermissionListener {
 
     private var FOLDER_FILE: File? = null
 
+    private lateinit var recyclerViewListApps: androidx.recyclerview.widget.RecyclerView
+    private lateinit var swipeApk: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+
+    lateinit var uninstallLauncher: ActivityResultLauncher<Intent>
+    lateinit var installLauncher: ActivityResultLauncher<Intent>
+    private var pendingInstallPackageName: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d(TAG,"onCreate")
+
+        uninstallLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            InstallActions.onUninstallResult(this, result.resultCode, installLauncher)
+        }
+        installLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            pendingInstallPackageName?.let { InstallActions.onInstallResult(this, result.resultCode, it, TrackingActions.DEFAULT_PRIVACY_LEVEL) }
+            refreshApps()
+        }
         setContentView(R.layout.activity_repacking)
-        FOLDER_FILE = File(Environment.getExternalStorageDirectory(), "HideDroid")
+        FOLDER_FILE = HideDroidStorage.prepareBaseDir(this)
 
         isDebugEnabled = this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE).getInt(HideDroidApplication.DEBUG_ENABLED_KEY, -1)
+
+        recyclerViewListApps = findViewById(R.id.recyclerViewListApps)
+        swipeApk = findViewById(R.id.swipeApk)
 
         // check permission
         Dexter.withContext(this)
@@ -83,26 +106,74 @@ class SelectAppActivity() : AppCompatActivity(), PermissionListener {
 
         // swipe to refresh
         swipeApk.setOnRefreshListener {
-            LoadApp().execute()
+            refreshApps()
             swipeApk.isRefreshing = false
         }
+
+        setupTrackedFilterButtons()
+    }
+
+    private fun setupTrackedFilterButtons() {
+        val filterAll = findViewById<View>(R.id.filterAll)
+        val filterTracked = findViewById<View>(R.id.filterTracked)
+        val filterNotTracked = findViewById<View>(R.id.filterNotTracked)
+
+        val buttons = listOf(filterAll, filterTracked, filterNotTracked)
+        fun select(selected: View, mode: TrackedFilter) {
+            buttons.forEach { it.isEnabled = it !== selected }
+            adapter?.setTrackedFilter(mode)
+        }
+
+        filterAll.setOnClickListener { select(filterAll, TrackedFilter.ALL) }
+        filterTracked.setOnClickListener { select(filterTracked, TrackedFilter.TRACKED) }
+        filterNotTracked.setOnClickListener { select(filterNotTracked, TrackedFilter.NOT_TRACKED) }
+        filterAll.isEnabled = false
+    }
+
+    /** Reloads the list; called after a quick track/repack action changes app state. */
+    fun refreshApps() {
+        lifecycleScope.launch { loadApps() }
+    }
+
+    /** Manually installs a signed apk already sitting in the output folder (uninstalling the old build first if needed). */
+    fun installRepackedApk(packageName: String, signedApkPath: String) {
+        pendingInstallPackageName = packageName
+        InstallActions.installSignedApk(this, packageName, signedApkPath,
+                TrackingActions.DEFAULT_PRIVACY_LEVEL, uninstallLauncher, installLauncher)
+    }
+
+    /** Called after a quick "Repack" action finishes; offers to install the resigned APK (uninstalling the old build first if needed). */
+    fun promptInstallRepacked(packageName: String, signedApkPath: String) {
+        if (!File(signedApkPath).isFile) {
+            return
+        }
+        androidx.appcompat.app.AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
+                .setTitle(getString(R.string.repack_finished_title))
+                .setMessage(getString(R.string.repack_finished_install_prompt, packageName))
+                .setPositiveButton("Yes") { _, _ ->
+                    installRepackedApk(packageName, signedApkPath)
+                }
+                .setNegativeButton("No") { dialog, _ -> dialog.cancel() }
+                .show()
     }
 
     override fun onResume() {
-        LoadApp().execute()
+        refreshApps()
         isDebugEnabled = this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE).getInt(HideDroidApplication.DEBUG_ENABLED_KEY, -1)
         super.onResume()
     }
 
 
-    private fun prepareFileAndFolders() {
+    private fun prepareFileAndFolders(): Boolean {
         LoggerHideDroid.d(TAG, "Prepare File and Folders")
         FOLDER_FILE!!.mkdirs()
-        if (!FOLDER_FILE!!.exists()) {
+        return if (!FOLDER_FILE!!.exists()) {
             if (isDebugEnabled == 1) {
                 Log.e("errorCreatingFolder", "Error creating $FOLDER_FILE")
             }
-            throw AssertionError("Error creating " + FOLDER_FILE.toString())
+            false
+        } else {
+            true
         }
     }
 
@@ -155,43 +226,54 @@ class SelectAppActivity() : AppCompatActivity(), PermissionListener {
         return true
     }
 
-    inner class LoadApp: AsyncTask<Unit, Unit, Unit>() {
-        private var apps = mutableListOf<AppItemRepacking>()
-
-        override fun onPreExecute() {
-            super.onPreExecute()
-            // progress bar circle
-            progressBar!!.visibility = View.VISIBLE
-            mDeterminateCircularProgressAnimator!!.start();
-
+    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
+        if (item.itemId == R.id.action_show_repacked_apps) {
+            startActivity(Intent(this, RepackedAppsActivity::class.java))
+            return true
         }
-        override fun doInBackground(vararg params: Unit?) {
-            LoggerHideDroid.d(TAG, "Load app")
-            applist = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
-            //var appListTracked = mutableListOf<String>()
+        return super.onOptionsItemSelected(item)
+    }
 
-            // Get all app installed on device (is slow)
-            // var appListTracked = UtilitiesStoreDataOnDb.getListPackageNameTracked()
+    private suspend fun loadApps() {
+        // UI setup on Main dispatcher
+        progressBar!!.visibility = View.VISIBLE
+        mDeterminateCircularProgressAnimator!!.start()
+
+        val apps = withContext(Dispatchers.IO) {
+            val result = mutableListOf<AppItemRepacking>()
+            LoggerHideDroid.d(TAG, "Load app")
+
             val appListTracked = UtilitiesStoreDataOnRealmDb.getListPackageNameTracked()
+            val statusByPackageName = UtilitiesStoreDataOnRealmDb.getAllApplicationStatus()
+                    .associateBy { it.packageName }
             LoggerHideDroid.d(TAG, "Finish loading app on db")
 
-            // TODO make faster
-            for (app in applist as MutableList<ApplicationInfo>) {
+            val installedApps = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getInstalledApplications(
+                        PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
+            }
+
+            val installedPackageNames = installedApps.map { it.packageName }.toSet()
+
+            for (app in installedApps) {
                 if ((FLAG_SYSTEM and app.flags) == 0 && app.packageName != packageName) {
                     val isAlreadyTracked = appListTracked.contains(app.packageName)
                     val status = if (!isAlreadyTracked) "Installed" else "Tracked"
                     try {
-
                         val appItemRepacking = AppItemRepacking(
                                 app.packageName,
-                                packageManager.getApplicationIcon(app.packageName),
+                                app.loadIcon(packageManager),
                                 app.name,
                                 app,
                                 status,
                                 true,
-                                isAlreadyTracked
+                                isAlreadyTracked,
+                                if (isAlreadyTracked) statusByPackageName[app.packageName]?.isRepackaged else null
                         )
-                        apps.add(appItemRepacking)
+                        result.add(appItemRepacking)
                     } catch (exception: PackageManager.NameNotFoundException) {
                         if (isDebugEnabled == 1) {
                             Log.e("pkNameNotFound", "PackageName not found in list application ${app.packageName}")
@@ -203,15 +285,18 @@ class SelectAppActivity() : AppCompatActivity(), PermissionListener {
 
             LoggerHideDroid.d(TAG, "Finish loading app installed on device")
 
-            // load all app in HideDroid dir signed
-            val pattern = Pattern.compile(".*_signed\\.apk")
-            val files = FOLDER_FILE!!.listFiles { pathname -> pattern.matcher(pathname!!.name).matches() }
+            // Every repacked APK in the canonical /sdcard/HideDroid/repack_app/<pkg>.apk
+            // location that isn't currently installed - shown regardless of tracked state
+            // so the user can find and install any of them manually (packages already
+            // installed are covered by the loop above instead).
+            val repackedApkFiles = File(HideDroidStorage.getLegacyBaseDir(), "repack_app")
+                    .listFiles { f -> f.isFile && f.name.endsWith(".apk") }
 
-            // load app already repackaged
-            if (files != null) {
-                for (fileApp in files) {
+            if (repackedApkFiles != null) {
+                for (fileApp in repackedApkFiles) {
+                    @Suppress("DEPRECATION")
                     val packageInfo = packageManager.getPackageArchiveInfo(fileApp.path, 0)
-                    if (packageInfo != null && !appListTracked.contains(packageInfo.packageName)) {
+                    if (packageInfo != null && !installedPackageNames.contains(packageInfo.packageName)) {
                         val app = AppItemRepacking(
                                 packageInfo.packageName,
                                 packageInfo.applicationInfo.loadIcon(packageManager),
@@ -219,9 +304,10 @@ class SelectAppActivity() : AppCompatActivity(), PermissionListener {
                                 packageInfo.applicationInfo,
                                 "Not Installed",
                                 isInstalled = false,
-                                isAlreadyTracked = false
+                                isAlreadyTracked = appListTracked.contains(packageInfo.packageName),
+                                signedApkPath = fileApp.absolutePath
                         )
-                        apps.add(app)
+                        result.add(app)
                     }
                 }
             }
@@ -230,23 +316,19 @@ class SelectAppActivity() : AppCompatActivity(), PermissionListener {
                 firstAppItemRepacking.packageName.compareTo(secondAppItemRepacking.packageName)
             }
 
-            if (apps.sortedWith(stringComparator).isNotEmpty()) {
-                apps = apps.sortedWith(stringComparator) as MutableList<AppItemRepacking>
+            if (result.sortedWith(stringComparator).isNotEmpty()) {
+                result.sortedWith(stringComparator)
+            } else {
+                result
             }
-
         }
 
-        override fun onPostExecute(result: Unit?) {
-            super.onPostExecute(result)
-            // Update recycler view
-            adapter!!.listAppObjectFiltered = ListAppsItemRepacking(apps)
-            adapter!!.listAppObject = ListAppsItemRepacking(apps)
-            adapter!!.notifyDataSetChanged()
-            mDeterminateCircularProgressAnimator!!.end()
-            progressBar!!.visibility = View.GONE
-
-        }
-
+        // UI update back on Main dispatcher
+        adapter!!.listAppObjectFiltered = ListAppsItemRepacking(apps.toMutableList())
+        adapter!!.listAppObject = ListAppsItemRepacking(apps.toMutableList())
+        adapter!!.notifyDataSetChanged()
+        mDeterminateCircularProgressAnimator!!.end()
+        progressBar!!.visibility = View.GONE
     }
 
 }

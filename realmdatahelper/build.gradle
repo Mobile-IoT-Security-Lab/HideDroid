@@ -1,12 +1,11 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-kapt'
 apply plugin: 'realm-android'
 
 android {
-    compileSdkVersion 30
-    buildToolsVersion "30.0.2"
+    namespace 'com.dave.realmdatahelper'
+    compileSdkVersion 33
 
     defaultConfig {
         minSdkVersion 23
@@ -41,5 +40,5 @@ dependencies {
 
     // database sugar
     implementation 'com.github.satyan:sugar:1.5'
-    implementation 'com.beust:klaxon:5.0.1'
+    implementation 'com.beust:klaxon:5.6'
 }

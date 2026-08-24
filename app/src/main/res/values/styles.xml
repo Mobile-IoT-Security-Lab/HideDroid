@@ -28,8 +28,10 @@
     <!-- <item name="colorPrimaryDark">@android:color/white</item> -->
     </style>
 
-    <style name="CustomAlertDialog" parent="Theme.MaterialComponents.DayNight.Dialog.Alert">
+    <style name="CustomAlertDialog" parent="Theme.MaterialComponents.Light.Dialog.Alert">
         <item name="android:windowBackground">@drawable/rounded_elements</item>
+        <item name="android:textColorPrimary">@android:color/black</item>
+        <item name="android:titleTextColor">@android:color/black</item>
         <item name="android:paddingLeft">@dimen/miniPadding</item>
         <item name="android:width">50dp</item>
         <item name="android:paddingRight">@dimen/miniPadding</item>
@@ -45,28 +47,40 @@
     </style>
 
     <!--<style name="CustomAlertDialogRounded" parent="Theme.AppCompat.Light.Dialog.Alert">-->
-    <style name="CustomAlertDialogRounded" parent="Theme.MaterialComponents.DayNight.Dialog.Alert">
+    <style name="CustomAlertDialogRounded" parent="Theme.MaterialComponents.Light.Dialog.Alert">
         <item name="android:windowBackground">@drawable/rounded_alert_dialog</item>
+        <item name="android:textColorPrimary">@android:color/black</item>
+        <item name="android:titleTextColor">@android:color/black</item>
         <item name="buttonBarPositiveButtonStyle">@style/Alert.Button.Positive</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Alert.Button.Negative</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Alert.Button.Neutral</item>
         <item name="android:fontFamily">@font/roboto</item>
         <item name="android:width">50dp</item>
         <item name="android:layout_gravity">center</item>
-        <item name="buttonBarNegativeButtonStyle">@style/Alert.Button.Neutral</item>
-        <item name="buttonBarNeutralButtonStyle">@style/Alert.Button.Neutral</item>
     </style>
 
     <style name="Alert.Button.Positive" parent="Widget.MaterialComponents.Button.TextButton">
         <item name="backgroundTint">@android:color/transparent</item>
         <item name="rippleColor">@color/colorAccent</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:textColor">@color/colorPrimaryDark</item>
+        <item name="android:textColor">@android:color/black</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <style name="Alert.Button.Negative" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="rippleColor">@color/colorAccent</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@android:color/black</item>
+        <item name="android:textSize">16sp</item>
     </style>
 
     <style name="Alert.Button.Neutral" parent="Widget.MaterialComponents.Button.TextButton">
         <item name="backgroundTint">@android:color/transparent</item>
         <item name="rippleColor">@color/colorAccent</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:textColor">@color/seek_bar_progress_none</item>
+        <item name="android:textColor">@android:color/black</item>
+        <item name="android:textSize">16sp</item>
     </style>
 
 <style name="ShapeAppearanceOverlay.MyApp.Button.Circle" parent="">

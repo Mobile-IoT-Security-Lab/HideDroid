@@ -28,9 +28,34 @@ Finally, the anonymized data are sent to the expected recipients by mimicking th
 
 </div>
 
- :warning:  HideDroid app has been compatible with all Android versions (also the newest ones 11 and 12) since the release [1.2](https://github.com/Mobile-IoT-Security-Lab/HideDroid/releases/tag/1.2). 
-With Android versions 11 and 12, the HideDroid app requires that the user manually installs the CA certificate. Indeed, the HideDroid app generates the certificate and place it inside the SdCard storage, so the user can manually install it on its device. 
-This operation is performed only for Android versions 11 and 12 due to new constraints on the programmatic installation of CA certificates, and it is performed programmatically in the other Android versions.
+ :warning:  HideDroid app has been compatible with all Android versions (also the newest ones 11 and 12) since the release [1.2](https://github.com/Mobile-IoT-Security-Lab/HideDroid/releases/tag/1.2).
+
+### CA certificate installation
+
+**Android 10 and newer (API 29+)**
+
+On modern Android versions the app can no longer write certificates to the system trust store (`/system/etc/security/cacerts`). The recommended setup is:
+
+1. Install the HideDroid CA as a **user certificate** from the app (Settings -> Security -> Privacy -> Install certificate from storage). After installation, target apps must be repackaged by HideDroid so their traffic is intercepted.
+2. If your device is **rooted** and you want system-wide trust without repackaging each app, export the certificate and install it through a **Magisk module** (e.g., [Move Certificates](https://github.com/Magisk-Modules-Repo/movecert) or any custom CA Magisk module that injects certificates into the system store).
+
+The app exposes two actions from the certificate status dialog:
+- **Install CA in user store**: triggers the system KeyChain installer.
+- **Export CA certificate**: lets you choose a folder and saves `HideDroidSample_ca.crt`, which can then be installed manually or pushed to a Magisk module.
+
+**Android 9 and older (API 28-)**
+
+On older versions the app can still install the CA in the system store directly when the device is rooted. Use the **Install CA in system store** option from the certificate status dialog.
+
+### Repackaging and on-device traffic inspection
+
+In order to read the endpoints contacted by a target app, **HideDroid** can repackage the target app so that the HideDroid TLS certificate, installed as a **user certificate**, is trusted by that app. The repackaging step adjusts the app's network security configuration to accept user-installed CAs, allowing HideDroid to intercept and inspect its TLS traffic. Repackaging runs entirely on-device via a bundled [apktool](https://github.com/iBotPeaches/apktool) 3.x with a native `aapt2` build for `arm64-v8a`/`armeabi-v7a`/`x86_64` (32-bit-only `x86` devices aren't supported).
+
+**Repack** and **No repack** (track without modifying the app) can be chosen directly from the app list, per app, and switched at any time; the list can also be filtered to **All** / **Tracked** / **Not tracked**. Before a repack starts, HideDroid asks where to write the decompiled/rebuilt APK (defaults to the app's private storage and is remembered afterwards), and shows apktool's decompile/build/sign progress live in a popup, which also surfaces the actual error if a repack fails.
+
+Alternatively, when HideDroid asks to modify the app, you can choose **"Try without modification"** (same as **No repack** in the app list) to track the app without repackaging it. In this case cleartext HTTP traffic is always intercepted and anonymized, while TLS traffic can be read only if the app already trusts user-installed certificates (for example apps targeting an SDK lower than 24, apps whose network security configuration already accepts user CAs, or any app when the HideDroid CA is installed in the system store on a rooted device).
+
+In this specific case, all data read by **HideDroid** never leave the device or the app itself: traffic interception, data extraction, and anonymization are performed entirely on-device.
 
 ## ❱ Publication
 

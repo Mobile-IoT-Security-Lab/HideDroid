@@ -4,9 +4,33 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/debug_button"
+        android:icon="@drawable/ic_baseline_bug_report_disabled_27"
+        android:title="Debug Mode"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/extractDebugLogs"
+        android:icon="@drawable/baseline_save_24"
+        android:title="Extract Debug Logs"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/extractDB"
+        android:icon="@drawable/baseline_save_24"
+        android:title="Extract DB"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/extractDGH"
+        android:icon="@drawable/baseline_save_24"
+        android:title="Extract DGH"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/clean_dir"
         android:icon="@drawable/baseline_delete_24"
-        android:title="clean directory"
+        android:title="Clean directory / Delete system CA"
         app:showAsAction="always" />
 
     <item

@@ -24,8 +24,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 
-import brut.util.Logger;
-
 public class SignatureManager {
     private static PrivateKey privateKey;
     private static X509Certificate certificate;

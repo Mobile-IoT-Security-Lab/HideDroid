@@ -146,7 +146,7 @@ class DataAnonymizer : Runnable {
                         "POST" -> {
                             when (newEventGeneralized.contentType) {
                                 ContentType.X_WWW_FORM_URLENCODED -> {
-                                    var client = getUnsafeOkHttpClient()!!
+                                    var client = getAnonymizationHttpClient()
                                     if (newEventGeneralized.contentEncoding == ContentEncoding.GZIP || newEventGeneralized.contentEncoding == ContentEncoding.DEFLATE) {
                                         client = client.newBuilder().addInterceptor(CompressRequestInterceptor()).build()
                                     }
@@ -199,7 +199,7 @@ class DataAnonymizer : Runnable {
                                     })
                                 }
                                 ContentType.MULTIPART_FORM_DATA -> {
-                                    var client = getUnsafeOkHttpClient()!!
+                                    var client = getAnonymizationHttpClient()
                                     if (newEventGeneralized.contentEncoding == ContentEncoding.GZIP || newEventGeneralized.contentEncoding == ContentEncoding.DEFLATE) {
                                         client = client.newBuilder().addInterceptor(CompressRequestInterceptor()).build()
                                     }
@@ -258,7 +258,7 @@ class DataAnonymizer : Runnable {
                                     })
                                 }
                                 ContentType.APPLICATION_JSON -> {
-                                    var client = getUnsafeOkHttpClient()!!
+                                    var client = getAnonymizationHttpClient()
                                     if (newEventGeneralized.contentEncoding == ContentEncoding.GZIP || newEventGeneralized.contentEncoding == ContentEncoding.DEFLATE) {
                                         client = client.newBuilder().addInterceptor(CompressRequestInterceptor()).build()
                                     }
@@ -308,7 +308,7 @@ class DataAnonymizer : Runnable {
                                     })
                                 }
                                 ContentType.TEXT_PLAIN -> {
-                                    var client = getUnsafeOkHttpClient()!!
+                                    var client = getAnonymizationHttpClient()
                                     if (newEventGeneralized.contentEncoding == ContentEncoding.GZIP || newEventGeneralized.contentEncoding == ContentEncoding.DEFLATE) {
                                         client = client.newBuilder().addInterceptor(CompressRequestInterceptor()).build()
                                     }
@@ -365,7 +365,7 @@ class DataAnonymizer : Runnable {
                         }
 
                         "GET" -> {
-                            val client = getUnsafeOkHttpClient()!!
+                            val client = getAnonymizationHttpClient()
                             val url = URLDecoder.decode("https://${newEventGeneralized.host}${newEventGeneralized.path}", "UTF-8")
                             val requestBuilder = Request.Builder()
 
@@ -428,18 +428,31 @@ class DataAnonymizer : Runnable {
         }
     }
 
-    private fun getUnsafeOkHttpClient(): OkHttpClient? {
+    /**
+     * Returns an OkHttpClient for outgoing anonymized requests.
+     *
+     * In release builds the client trusts the system + user CA stores only.
+     * The all-trusting client is used only when debug mode is enabled, so that
+     * research builds can talk to self-signed endpoints without weakening TLS
+     * for every production install.
+     */
+    private fun getAnonymizationHttpClient(): OkHttpClient {
+        return if (isDebugEnabled.get()) {
+            buildUnsafeOkHttpClient()
+        } else {
+            OkHttpClient.Builder().build()
+        }
+    }
+
+    private fun buildUnsafeOkHttpClient(): OkHttpClient {
         return try {
-            // Create a trust manager that does not validate certificate chains
             val trustAllCerts: Array<TrustManager> = arrayOf(
                     object : X509TrustManager {
                         @Throws(CertificateException::class)
-                        override fun checkClientTrusted(chain: Array<X509Certificate?>?, authType: String?) {
-                        }
+                        override fun checkClientTrusted(chain: Array<X509Certificate?>?, authType: String?) {}
 
                         @Throws(CertificateException::class)
-                        override fun checkServerTrusted(chain: Array<X509Certificate?>?, authType: String?) {
-                        }
+                        override fun checkServerTrusted(chain: Array<X509Certificate?>?, authType: String?) {}
 
                         override fun getAcceptedIssuers(): Array<X509Certificate> {
                             return arrayOf()
@@ -447,10 +460,8 @@ class DataAnonymizer : Runnable {
                     }
             )
 
-            // Install the all-trusting trust manager
-            val sslContext: SSLContext = SSLContext.getInstance("SSL")
+            val sslContext: SSLContext = SSLContext.getInstance("TLS")
             sslContext.init(null, trustAllCerts, SecureRandom())
-            // Create an ssl socket factory with our all-trusting manager
             val sslSocketFactory: SSLSocketFactory = sslContext.socketFactory
             val builder: OkHttpClient.Builder = OkHttpClient.Builder()
             builder.sslSocketFactory(sslSocketFactory, trustAllCerts[0] as X509TrustManager)

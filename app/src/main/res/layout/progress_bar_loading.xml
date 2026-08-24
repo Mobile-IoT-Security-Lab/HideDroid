@@ -9,12 +9,25 @@
         android:layout_width="wrap_content"
         android:id="@+id/progress_bar_alert_dialog"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal|bottom"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
         android:indeterminate="true"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         style="@style/Widget.MaterialProgressBar.ProgressBar" />
+
+    <!-- apktool.module.Logger output (decode/build/sign progress, and the
+         real aapt2 failure text when something goes wrong) gets attached
+         here at runtime - see AbstractTask.showDialog(). -->
+    <FrameLayout
+        android:id="@+id/message_container"
+        android:layout_width="match_parent"
+        android:layout_height="240dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/progress_bar_alert_dialog" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

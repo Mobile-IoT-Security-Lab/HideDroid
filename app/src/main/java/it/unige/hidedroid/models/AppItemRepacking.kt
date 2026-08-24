@@ -10,5 +10,9 @@ data class AppItemRepacking (
         val appInfo: ApplicationInfo,
         val status: String,
         val isInstalled: Boolean,
-        val isAlreadyTracked: Boolean
+        val isAlreadyTracked: Boolean,
+        // null = not tracked yet, true = tracked with repackaging, false = tracked without repackaging.
+        val isRepackaged: Boolean? = null,
+        // Set only for !isInstalled entries backed by a _signed.apk already sitting in the output folder.
+        val signedApkPath: String? = null
 )

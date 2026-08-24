@@ -7,15 +7,8 @@ import android.util.Log;
 import com.dave.realmdatahelper.hidedroid.ApplicationStatus;
 import com.dave.realmdatahelper.hidedroid.PackageNamePrivacyLevel;
 
-import org.apache.commons.io.FileUtils;
-import org.dom4j.Document;
-import org.dom4j.DocumentHelper;
-import org.dom4j.Element;
-import org.dom4j.Node;
-import org.dom4j.io.SAXReader;
-
 import java.io.File;
-import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -26,15 +19,30 @@ import java.util.logging.Level;
 
 import apktool.module.Apktool;
 import apktool.module.SignatureManager;
-import brut.androlib.meta.MetaInfo;
+import brut.androlib.meta.ApkInfo;
 import it.unige.hidedroid.R;
+import it.unige.hidedroid.utils.HideDroidStorage;
+import it.unige.hidedroid.utils.UserCertTrustChecker;
 
 public class RepackageTask extends AbstractTask {
     private final String name;
+    private final List<File> splitApks;
 
     public RepackageTask(Context ctx, String name) {
+        this(ctx, name, Collections.emptyList());
+    }
+
+    /**
+     * @param splitApks split APKs (config/density/ABI/language) from an Android
+     *                  App Bundle install of the same app, if any. Each is only
+     *                  re-signed with the same key as the rebuilt base APK, never
+     *                  decompiled - they carry no manifest/resources.arsc worth
+     *                  patching, they just need to match the base's new signature.
+     */
+    public RepackageTask(Context ctx, String name, List<File> splitApks) {
         super(ctx);
         this.name = name;
+        this.splitApks = splitApks;
     }
 
     @Override
@@ -49,38 +57,43 @@ public class RepackageTask extends AbstractTask {
         File tmpApk = new File(f.getParent(), name + "_tmp.apk");
         File signedApk = new File(f.getParent(), name + "_signed.apk");
 
-        Apktool tool;
-        SignatureManager signManager;
-
-        try {
-            tool = new Apktool(this.ctx.getApplicationContext(), this);
-            tool.decodeResources(f, decompiledDir);
-        } catch (Exception e) {
-            if (isDebugEnabled.get()) {
-                Log.e("errorDecompilation", "Unable to decompile the apk: " + e);
-            }
-            log(Level.WARNING, "Unable to decompile the apk", e);
-            return false;
+        // Fast path: if the APK already trusts user certificates, there is no
+        // need to decode, patch, rebuild and sign it. The user-installed CA will
+        // be trusted as soon as the app is selected.
+        boolean appAlreadyRepackaged = UserCertTrustChecker.apkTrustsUserCertificates(this.ctx.getApplicationContext(), f);
+        if (appAlreadyRepackaged) {
+            info("APK already trusts user certificates; skipping repackaging");
         }
 
-        boolean appAlreadyRepackaged;
-        try {
-            appAlreadyRepackaged = updateNetworkSecurityConfig(decompiledDir);
-        } catch (Exception e) {
-            if (isDebugEnabled.get()) {
-                Log.e("errorUpdateNetworkConf", "Unable to update network security configuration: " + e);
+        Apktool tool = null;
+        int minSdk = 19;
+
+        if (!appAlreadyRepackaged) {
+            try {
+                info("Decompiling " + f.getName() + " with apktool into " + decompiledDir.getPath() + "...");
+                tool = new Apktool(this.ctx.getApplicationContext(), this);
+                ApkInfo info = tool.decodeResources(f, decompiledDir);
+                String minSdkVersion = info.getSdkInfo().getMinSdkVersion();
+                if (minSdkVersion != null) {
+                    minSdk = Integer.parseInt(minSdkVersion);
+                }
+                info("Decompilation finished (minSdkVersion=" + minSdkVersion + ")");
+            } catch (Exception e) {
+                if (isDebugEnabled.get()) {
+                    Log.e("errorDecompilation", "Unable to decompile the apk: " + e);
+                }
+                log(Level.WARNING, "Unable to decompile the apk", e);
+                return false;
             }
-            log(Level.WARNING, "Unable to update network security configuration", e);
-            return false;
         }
 
         if (!appAlreadyRepackaged) {
-            int minSdk = 19;
             try {
-                MetaInfo meta = tool.build(decompiledDir, tmpApk);
-                if (meta.sdkInfo != null) {
-                    minSdk = Integer.parseInt(meta.sdkInfo.get("minSdkVersion"));
-                }
+                info("Rebuilding APK with aapt2 (injecting permissive network security config)...");
+                // apktool injects a network security config trusting user-added
+                // certificates directly during the build; no manual XML patching needed.
+                tool.build(decompiledDir, tmpApk, true);
+                info("Rebuild finished: " + tmpApk.getPath());
             } catch (Exception e) {
                 if (isDebugEnabled.get()) {
                     Log.e("errorBuildingApk", "Unable to build the new apk: " + e);
@@ -90,7 +103,9 @@ public class RepackageTask extends AbstractTask {
                 return false;
             }
 
+            SignatureManager signManager;
             try {
+                info("Signing " + tmpApk.getName() + " (minSdk=" + minSdk + ")...");
                 signManager = new SignatureManager(this.ctx.getApplicationContext(), this);
                 signManager.sign(tmpApk, signedApk, minSdk);
             } catch (Exception e) {
@@ -103,6 +118,7 @@ public class RepackageTask extends AbstractTask {
                 tmpApk.delete();
             }
 
+            info("Verifying signature...");
             if (!signManager.verify(signedApk)) {
                 if (isDebugEnabled.get()) {
                     Log.e("errorVerificationApk", "WARNING: Unable to verify the signature of the new apk");
@@ -110,7 +126,41 @@ public class RepackageTask extends AbstractTask {
                 warning("Unable to verify the signature of the new apk");
                 return false;
             }
+
+            try {
+                File repackedApk = HideDroidStorage.moveToRepackedLocation(name, signedApk);
+                info("Repacked APK moved to " + repackedApk.getPath());
+            } catch (Exception e) {
+                if (isDebugEnabled.get()) {
+                    Log.e("errorMovingApk", "Unable to move the repacked apk: " + e);
+                }
+                log(Level.WARNING, "Unable to move the repacked apk to shared storage", e);
+                return false;
+            }
+
+            // Split APKs (config/density/ABI/language) just need to match the base's new
+            // signature to install together - resign each directly, no decompile/rebuild.
+            // Best-effort: a failed split shouldn't block the (already valid) base APK.
+            for (File split : splitApks) {
+                File signedSplit = HideDroidStorage.getRepackedSplitFile(name, split.getName());
+                try {
+                    info("Resigning split " + split.getName() + "...");
+                    signManager.sign(split, signedSplit, minSdk);
+                    if (signManager.verify(signedSplit)) {
+                        info("Resigned split saved to " + signedSplit.getPath());
+                    } else {
+                        warning("Unable to verify signature of resigned split " + split.getName());
+                    }
+                } catch (Exception e) {
+                    if (isDebugEnabled.get()) {
+                        Log.e("errorSigningSplit", "Unable to resign split " + split.getName() + ": " + e);
+                    }
+                    log(Level.WARNING, "Unable to resign split " + split.getName(), e);
+                }
+            }
         }
+
+        @SuppressWarnings("deprecation")
         PackageInfo pi = this.ctx.getPackageManager().getPackageArchiveInfo(f.getPath(), 0);
         ApplicationStatus applicationStatus = new ApplicationStatus(
                 pi.packageName, appAlreadyRepackaged, true,
@@ -131,115 +181,8 @@ public class RepackageTask extends AbstractTask {
                 selectedPrivacyLevelsLock.unlock();
             }
         }
-        /*UtilitiesStoreDataOnDb.INSTANCE.storeStateApp(pi.packageName,
-                false, true,
-                false, false, false);
-        */
         Log.d(RepackageTask.class.getName(), "Store on DB Repackaged with successfully");
-        // TODO update db con repackaged = True
         return true;
     }
 
-    private boolean updateNetworkSecurityConfig(File outputDir) throws Exception {
-        String networkConfigDefaultLocation = "res/xml/network_security_config.xml";
-
-        SAXReader reader = new SAXReader();
-        Document manifestDoc = reader.read(new File(outputDir, "AndroidManifest.xml"));
-
-        Element manifestRoot = manifestDoc.getRootElement();
-        String networkConfigLocation = ((Element) manifestRoot.selectSingleNode("./application"))
-                .attributeValue("networkSecurityConfig");
-
-        File networkConfigFile = new File(outputDir, networkConfigDefaultLocation);
-
-        Element app = (Element) manifestRoot.selectSingleNode("./application");
-        //app.remove(app.attribute("testOnly"));
-        //app.addAttribute("android:testOnly", "false");
-        //FileUtils.writeStringToFile(new File(outputDir, "AndroidManifest.xml"), manifestRoot.asXML(), StandardCharsets.UTF_8);
-
-        if (networkConfigLocation == null) {
-            // add @xml/networl_security_config
-            app.addAttribute("android:networkSecurityConfig", "@xml/network_security_config");
-            FileUtils.writeStringToFile(new File(outputDir, "AndroidManifest.xml"), manifestRoot.asXML(), String.valueOf(StandardCharsets.UTF_8));
-
-            info("Add networkSecurityConfig on Manifest");
-            //throw new UnsupportedOperationException(
-            //        String.format("Unexpected location of network security configuration: %s",
-            //                networkConfigLocation));
-        } else {
-            networkConfigFile = new File(outputDir, "res/xml/" + networkConfigLocation.split("/")[1] + ".xml");
-        }
-
-        if (networkConfigFile.exists() && networkConfigFile.isFile()) {
-            // "network_security_config.xml" file found, make it trust user certificates.
-
-            info("Updating network_security_config.xml...");
-
-            Document networkDoc = reader.read(networkConfigFile);
-            Element networkRoot = networkDoc.getRootElement();
-
-            Node trustAnchors = networkRoot.selectSingleNode("./base-config/trust-anchors");
-            Node baseConfig = networkRoot.selectSingleNode("./base-config");
-
-            // check if certificates are already present, don't add twice!
-            if (trustAnchors != null) {
-                List<Node> nodes = ((Element) trustAnchors).selectNodes("./certificates");
-                boolean system = false;
-                boolean user = false;
-                for (Node n : nodes) {
-                    if (((Element) n).attributeValue("src").equals("user")) {
-                        user = true;
-                    }
-                    if (((Element) n).attributeValue("src").equals("system")) {
-                        system = true;
-                    }
-                    if (system && user) {
-                        break;
-                    }
-                }
-                if (system && user) {
-                    return true;
-                }
-                if (!system) {
-                    ((Element) trustAnchors).addElement("certificates")
-                            .addAttribute("src", "system");
-                }
-                if (!user) {
-                    ((Element) trustAnchors).addElement("certificates")
-                            .addAttribute("src", "user");
-                }
-            } else if (baseConfig != null) {
-                Element t = ((Element) baseConfig).addElement("trust-anchors");
-                t.addElement("certificates").addAttribute("src", "system");
-                t.addElement("certificates").addAttribute("src", "user");
-            } else {
-                Element t = networkRoot.addElement("base-config").addElement("trust-anchors");
-                t.addElement("certificates").addAttribute("src", "system");
-                t.addElement("certificates").addAttribute("src", "user");
-            }
-
-            FileUtils.writeStringToFile(networkConfigFile, networkDoc.asXML(), String.valueOf(StandardCharsets.UTF_8));
-        } else {
-            // "network_security_config.xml" file not found, add it and make it trust user
-            // certificates.
-            if (!networkConfigFile.getParentFile().exists()) {
-                networkConfigFile.getParentFile().mkdirs();
-            }
-            networkConfigFile.createNewFile();
-            info("add new network security config file");
-            Document networkDoc = DocumentHelper.createDocument();
-            info("Create new document");
-            Element networkRoot = (Element) networkDoc.addElement("network-security-config");
-            Element t = networkRoot.addElement("base-config").addElement("trust-anchors");
-            t.addElement("certificates").addAttribute("src", "system");
-            t.addElement("certificates").addAttribute("src", "user");
-            FileUtils.writeStringToFile(networkConfigFile, networkDoc.asXML(), String.valueOf(StandardCharsets.UTF_8));
-        }
-        return false;
-    }
-
-    @Override
-    protected void onPostExecute(Boolean result) {
-        super.onPostExecute(result);
-    }
 }

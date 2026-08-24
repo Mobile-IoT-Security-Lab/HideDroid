@@ -1,21 +1,28 @@
 package it.unige.hidedroid.service
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.IBinder
+import androidx.core.app.NotificationCompat
 import com.dave.anonymization_data.anonymizationthreads.DataAnonymizer
-import com.google.gson.Gson
 import io.realm.RealmConfiguration
 import it.unige.hidedroid.HideDroidApplication
 import it.unige.hidedroid.R
+import it.unige.hidedroid.activity.MainActivity
 import it.unige.hidedroid.log.LoggerHideDroid
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.Condition
 import java.util.concurrent.locks.ReentrantLock
 
-class ServiceAnonymization: Service() {
+class ServiceAnonymization : Service() {
 
     val ACTION_START = "it.unige.hidedroid.action.Start"
     val ACTION_STOP = "it.unige.hidedroid.action.Stop"
@@ -33,8 +40,9 @@ class ServiceAnonymization: Service() {
     lateinit var requestToAnonymizeCondition: Condition
 
 
-    companion object{
+    companion object {
         val TAG = ServiceAnonymization::class.java.name
+        private const val NOTIFICATION_ID = 101
     }
 
     interface ServiceAnonymizationChangeStatus {
@@ -43,7 +51,6 @@ class ServiceAnonymization: Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? {
-        //TODO("Not yet implemented")
         LoggerHideDroid.d(TAG, "OnBind")
         return null
     }
@@ -67,9 +74,13 @@ class ServiceAnonymization: Service() {
                 realmConfigDGH, requestToAnonymizeLock, requestToAnonymizeCondition,
                 (this.application as HideDroidApplication).selectedPrivacyLevelsLock, (this.application as HideDroidApplication).blackListFields,
                 (this.application as HideDroidApplication).dghBox)
+
+        createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(NOTIFICATION_ID, createNotification())
+
         if (!isActive.get()) {
             LoggerHideDroid.d(TAG, "Start Service")
             isActive.set(true)
@@ -94,5 +105,40 @@ class ServiceAnonymization: Service() {
 
         listener.onDeactivate()
         super.onDestroy()
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (notificationManager.getNotificationChannel(getString(R.string.channel_id_anonymization)) == null) {
+                val channel = NotificationChannel(
+                        getString(R.string.channel_id_anonymization),
+                        getString(R.string.app_name),
+                        NotificationManager.IMPORTANCE_LOW
+                )
+                notificationManager.createNotificationChannel(channel)
+            }
+        }
+    }
+
+    private fun createNotification(): Notification {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+            action = Intent.ACTION_MAIN
+        }
+        val pendingIntent = PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        return NotificationCompat.Builder(this, getString(R.string.channel_id_anonymization))
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(getString(R.string.app_name))
+                .setContentText(getString(R.string.anonymization_service_running))
+                .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+                .setOngoing(true)
+                .setContentIntent(pendingIntent)
+                .build()
     }
 }

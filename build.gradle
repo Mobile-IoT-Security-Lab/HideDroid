@@ -1,15 +1,14 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 buildscript {
-    ext.kotlin_version = '1.4.10'
+    ext.kotlin_version = '1.8.10'
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:4.1.1'
+        classpath 'com.android.tools.build:gradle:7.4.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath "io.realm:realm-gradle-plugin:6.0.2"
-        //classpath "io.realm:realm-gradle-plugin:10.0.0-BETA.5"
+        classpath "io.realm:realm-gradle-plugin:10.19.0"
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
@@ -18,8 +17,27 @@ buildscript {
 allprojects {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
 
+    configurations.all {
+        // Guava (pulled in transitively by apktool-lib) depends on recent
+        // error_prone_annotations/j2objc-annotations releases whose class files
+        // crash D8 on this AGP/Gradle version. Both are compile-time-only marker
+        // annotations (CLASS retention, J2ObjC-transpiler hints) unused at
+        // runtime here, so dropping the jars is safe.
+        exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
+        exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
+
+        resolutionStrategy {
+            // Same D8 issue, but these ARE used at runtime (apktool 3.0.3 pulls
+            // very recent Apache Commons releases) - pin to older releases with
+            // the same API that this D8 version can actually dex.
+            force 'commons-io:commons-io:2.11.0'
+            force 'org.apache.commons:commons-text:1.10.0'
+            force 'org.apache.commons:commons-lang3:3.13.0'
+        }
     }
 }
 

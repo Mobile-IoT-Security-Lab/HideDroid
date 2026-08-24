@@ -37,4 +37,8 @@ object Utilities {
         return android.os.Build.VERSION.SDK_INT >=  android.os.Build.VERSION_CODES.N
     }
 
+    fun isModernAndroid(): Boolean {
+        return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
+    }
+
 }

@@ -8,6 +8,7 @@ import android.content.SharedPreferences
 import com.dave.anonymization_data.anonymizationthreads.DataAnonymizer
 import com.dave.realmdatahelper.hidedroid.PackageNamePrivacyLevel
 import com.dave.realmdatahelper.realmmodules.DGHModule
+import com.dave.realmdatahelper.realmmodules.DebugModule
 import com.dave.realmdatahelper.realmmodules.DefaultModules
 import com.dave.realmdatahelper.realmmodules.PrivateTrackerModule
 import com.github.megatronking.netbare.BuildConfig
@@ -45,6 +46,7 @@ class HideDroidApplication : Application() {
     private lateinit var mJKS: JKS
     lateinit var realmConfigPrivateTracker: RealmConfiguration
     lateinit var realmConfigDGH: RealmConfiguration
+    lateinit var realmConfigLog: RealmConfiguration
 
     val isDebugEnabled: AtomicBoolean = AtomicBoolean(false)
     lateinit var preferences: SharedPreferences
@@ -135,6 +137,10 @@ class HideDroidApplication : Application() {
                 .name("realmeventbuffer.realm")
                 .schemaVersion(0)
                 .modules(DefaultModules())
+                // Several flows (repackaging, install/uninstall callbacks, privacy
+                // settings) persist tiny single-object writes directly from the UI
+                // thread. Since Realm 7.x this requires an explicit opt-in.
+                .allowWritesOnUiThread(true)
                 .build()
         Realm.setDefaultConfiguration(realmConfig)
 
@@ -150,6 +156,13 @@ class HideDroidApplication : Application() {
                 .name("realmDGH.realm")
                 .schemaVersion(0)
                 .modules(DGHModule())
+                .build()
+
+        // REALM DB FOR DEBUG LOGS
+        realmConfigLog = RealmConfiguration.Builder()
+                .name("realmDebugLogs.realm")
+                .schemaVersion(0)
+                .modules(DebugModule())
                 .build()
 
         val realm = Realm.getDefaultInstance()
@@ -195,13 +208,26 @@ class HideDroidApplication : Application() {
         )
     }
 
-    override fun onTerminate() {
-        super.onTerminate()
-        SugarContext.terminate()
-        Realm.getDefaultInstance().close();
+    fun getJSK(): JKS {
+        return mJKS
     }
 
-    fun getJSK(): JKS {
+    fun regenerateJSK(): JKS {
+        val sp: SharedPreferences = this.getSharedPreferences("configuration", MODE_PRIVATE)
+        val instanceAppId = System.currentTimeMillis().toString()
+        sp.edit().putString("instanceAppId", instanceAppId).commit()
+        val alias = JSK_ALIAS + "_" + instanceAppId
+
+        // Remove stale certificate files so the old cert is no longer used/exported
+        cacheDir.listFiles { _, name ->
+            name.startsWith(JSK_ALIAS) &&
+                    (name.endsWith(JKS.KEY_STORE_FILE_EXTENSION) ||
+                            name.endsWith(JKS.KEY_PEM_FILE_EXTENSION) ||
+                            name.endsWith(JKS.KEY_JKS_FILE_EXTENSION) ||
+                            name.endsWith(JKS.CRT_FILE_EXTENSION))
+        }?.forEach { it.delete() }
+
+        mJKS = JKS(this, alias, alias.toCharArray(), alias, alias, alias, alias, alias)
         return mJKS
     }
 

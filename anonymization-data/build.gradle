@@ -1,12 +1,11 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-kapt'
 apply plugin: 'realm-android'
 
 android {
-    compileSdk 28
-    buildToolsVersion "30.0.2"
+    namespace 'com.dave.anonymization_data'
+    compileSdkVersion 33
 
     defaultConfig {
         minSdkVersion 21

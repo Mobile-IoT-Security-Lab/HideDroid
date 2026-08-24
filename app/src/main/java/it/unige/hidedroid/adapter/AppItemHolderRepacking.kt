@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,21 +15,36 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.button.MaterialButton
+import es.dmoral.toasty.Toasty
 import it.unige.hidedroid.R
 import it.unige.hidedroid.activity.SaveSettingApkActivity
+import it.unige.hidedroid.activity.SelectAppActivity
 import it.unige.hidedroid.log.LoggerHideDroid
 import it.unige.hidedroid.models.AppItemRepacking
-import it.unige.hidedroid.utils.Utilities
-import it.unige.hidedroid.myinterface.ItemClickListener
 import it.unige.hidedroid.models.ListAppsItemRepacking
-import java.io.File
+import it.unige.hidedroid.myinterface.ItemClickListener
+import it.unige.hidedroid.utils.ApkExtraction
+import it.unige.hidedroid.utils.FolderPicker
+import it.unige.hidedroid.utils.HideDroidStorage
+import it.unige.hidedroid.utils.TrackingActions
+import it.unige.hidedroid.utils.Utilities
 import java.io.IOException
+
+/** Which apps to show in the list, independently of the text search. */
+enum class TrackedFilter {
+    ALL, TRACKED, NOT_TRACKED
+}
 
 class AppViewHolderRepacking(itemView:View): RecyclerView.ViewHolder(itemView), View.OnClickListener, View.OnLongClickListener{
 
     var iconApp: ImageView = itemView.findViewById(R.id.iconAppRepacking) as ImageView
     var packageName: TextView = itemView.findViewById(R.id.idPackageName) as TextView
     var isInstalled: TextView = itemView.findViewById(R.id.isInstalled) as TextView
+    var trackingModeButtons: View = itemView.findViewById(R.id.trackingModeButtons)
+    var buttonTrackRepack: MaterialButton = itemView.findViewById(R.id.buttonTrackRepack) as MaterialButton
+    var buttonTrackNoRepack: MaterialButton = itemView.findViewById(R.id.buttonTrackNoRepack) as MaterialButton
+    var buttonInstallRepacked: MaterialButton = itemView.findViewById(R.id.buttonInstallRepacked) as MaterialButton
     private var itemClickListener: ItemClickListener?=null
 
     init {
@@ -64,7 +78,22 @@ class AppAdapterRepacking(
     companion object{
         private val TAG = AppAdapterRepacking::class.java.name
     }
-    private val inflater:LayoutInflater = LayoutInflater.from(mContext)
+    // MaterialButton (row_list_apps.xml) needs a context carrying the app's
+    // Material theme; mContext is the Activity's baseContext, which doesn't.
+    private val inflater:LayoutInflater = LayoutInflater.from(mActivity)
+
+    private var lastQuery: CharSequence = ""
+    private var trackedFilter: TrackedFilter = TrackedFilter.ALL
+
+    /** Re-applies the tracked/not-tracked filter on top of whatever search query is active. */
+    fun setTrackedFilter(mode: TrackedFilter) {
+        trackedFilter = mode
+        filter.filter(lastQuery)
+    }
+
+    private fun refreshAppList() {
+        (mActivity as? SelectAppActivity)?.refreshApps()
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AppViewHolderRepacking {
         val itemView = inflater.inflate(R.layout.row_list_apps, parent, false)
@@ -76,10 +105,69 @@ class AppAdapterRepacking(
     }
 
     override fun onBindViewHolder(holder: AppViewHolderRepacking, position: Int) {
+        val item = listAppObjectFiltered.appRepackings[position]
 
-        holder.packageName.text = listAppObjectFiltered.appRepackings[position].packageName
-        holder.iconApp.setImageDrawable(listAppObjectFiltered.appRepackings[position].icon)
-        holder.isInstalled.text = listAppObjectFiltered.appRepackings[position].status
+        holder.packageName.text = item.packageName
+        holder.iconApp.setImageDrawable(item.icon)
+        holder.isInstalled.text = when (item.isRepackaged) {
+            true -> mContext.getString(R.string.status_tracked_repacked)
+            false -> mContext.getString(R.string.status_tracked_no_repack)
+            null -> item.status
+        }
+
+        // Quick mode switches only make sense for a currently installed app; a not-installed
+        // entry backed by a _signed.apk in the output folder gets a manual install button instead.
+        if (item.isInstalled) {
+            holder.trackingModeButtons.visibility = View.VISIBLE
+            holder.buttonTrackNoRepack.visibility = View.VISIBLE
+            holder.buttonTrackRepack.visibility = View.VISIBLE
+            holder.buttonInstallRepacked.visibility = View.GONE
+            holder.buttonTrackRepack.isChecked = item.isRepackaged == true
+            holder.buttonTrackNoRepack.isChecked = item.isRepackaged == false
+
+            holder.buttonTrackNoRepack.setOnClickListener {
+                if (item.isRepackaged == false) {
+                    TrackingActions.resetTracking(mContext, item.packageName)
+                } else {
+                    TrackingActions.trackWithoutRepack(mContext, item.packageName)
+                }
+                refreshAppList()
+            }
+
+            holder.buttonTrackRepack.setOnClickListener {
+                Toasty.info(mContext, mContext.getString(R.string.output_folder_setup_message)).show()
+                FolderPicker.choose(mActivity, HideDroidStorage.prepareBaseDir(mContext)) { chosenDir ->
+                    HideDroidStorage.setOutputFolder(mContext, chosenDir)
+
+                    try {
+                        val apks = ApkExtraction.extractInstalled(mContext, item.packageName, chosenDir)
+                        val signedApk = HideDroidStorage.getRepackedApkFile(item.packageName)
+                        TrackingActions.startRepack(mActivity, item.packageName, apks.base.absolutePath,
+                                apks.splits.map { it.absolutePath }) {
+                            refreshAppList()
+                            (mActivity as? SelectAppActivity)?.promptInstallRepacked(item.packageName, signedApk.absolutePath)
+                        }
+                    } catch (e: IOException) {
+                        if (e.toString().contains("ENOSPC")) {
+                            Utilities.ShowAlertDialog(mContext, "Errors", "No space left")
+                        } else {
+                            throw AssertionError("FAIL: extracting APKs for ${item.packageName}", e)
+                        }
+                    }
+                }
+            }
+        } else if (item.signedApkPath != null) {
+            holder.trackingModeButtons.visibility = View.VISIBLE
+            holder.buttonTrackNoRepack.visibility = View.GONE
+            holder.buttonTrackRepack.visibility = View.GONE
+            holder.buttonInstallRepacked.visibility = View.VISIBLE
+
+            holder.buttonInstallRepacked.setOnClickListener {
+                (mActivity as? SelectAppActivity)?.installRepackedApk(item.packageName, item.signedApkPath)
+            }
+        } else {
+            holder.trackingModeButtons.visibility = View.GONE
+        }
 
 
         holder.setItemClickListener(object : ItemClickListener {
@@ -90,14 +178,13 @@ class AppAdapterRepacking(
                     val packageName: String = appInfo.packageName
 
                     if (listAppObjectFiltered.appRepackings[position].isInstalled) {
-                        val publicSourceDir: String = appInfo.publicSourceDir
-                        val src = File(publicSourceDir)
-                        val dst = File(File(Environment.getExternalStorageDirectory(), "HideDroid")!!.path + "/" + packageName + ".apk")
+                        val baseDir = HideDroidStorage.prepareBaseDir(mContext)
                         try {
-                            Utilities.copyFile(src, dst)
+                            val apks = ApkExtraction.extractInstalled(mContext, packageName, baseDir)
                             val saveApkResultIntent = Intent(mContext, SaveSettingApkActivity::class.java)
                             val bundle = Bundle()
-                            bundle.putStringArray(SaveSettingApkActivity.MSG_SAVEAPKSERVICE, arrayOf(dst.absolutePath, packageName, "true"))
+                            val msg = arrayOf(apks.base.absolutePath, packageName, "true") + apks.splits.map { it.absolutePath }
+                            bundle.putStringArray(SaveSettingApkActivity.MSG_SAVEAPKSERVICE, msg)
                             saveApkResultIntent.putExtras(bundle)
                             mActivity.startActivity(saveApkResultIntent, ActivityOptions.makeSceneTransitionAnimation(mActivity).toBundle())
                         } catch (e: IOException) {
@@ -108,13 +195,13 @@ class AppAdapterRepacking(
                                         "No space left"
                                 )
                             } else
-                                throw AssertionError("FAIL: copy from $src to $dst")
+                                throw AssertionError("FAIL: extracting APKs for $packageName", e)
                         }
 
                     } else {
                         val saveApkResultIntent = Intent(mContext, SaveSettingApkActivity::class.java)
                         val bundle = Bundle()
-                        var apk_path = File(File(Environment.getExternalStorageDirectory(), "HideDroid")!!.path + "/" + "${packageName}_signed.apk")
+                        val apk_path = HideDroidStorage.getRepackedApkFile(packageName)
 
                         bundle.putStringArray(SaveSettingApkActivity.MSG_SAVEAPKSERVICE, arrayOf(apk_path.absolutePath, packageName, "false"))
                         saveApkResultIntent.putExtras(bundle)
@@ -147,23 +234,25 @@ class AppAdapterRepacking(
     override fun getFilter(): Filter {
         return object : Filter() {
             override fun performFiltering(p0: CharSequence?): FilterResults {
-                var charString = p0.toString();
-                if (charString.isEmpty() || charString.equals("")) {
-                    listAppObjectFiltered.appRepackings = listAppObject.appRepackings;
-                } else {
-                    var listAppFiltered = mutableListOf<AppItemRepacking>()
-                    for (app in listAppObject.appRepackings) {
+                lastQuery = p0 ?: ""
+                var charString = lastQuery.toString();
 
-                        // name match condition. this might differ depending on your requirement
-                        // here we are looking for name or package number match
-                        if (app.packageName.toLowerCase().contains(charString.toLowerCase()) ||
-                                (app?.name != null && app.name.toLowerCase().contains(charString.toLowerCase())) ) {
-                            listAppFiltered.add(app);
-                        }
+                var listAppFiltered = if (charString.isEmpty()) {
+                    listAppObject.appRepackings
+                } else {
+                    listAppObject.appRepackings.filter { app ->
+                        app.packageName.toLowerCase().contains(charString.toLowerCase()) ||
+                                (app.name != null && app.name.toLowerCase().contains(charString.toLowerCase()))
                     }
-                    listAppObjectFiltered.appRepackings = listAppFiltered
                 }
 
+                listAppFiltered = when (trackedFilter) {
+                    TrackedFilter.ALL -> listAppFiltered
+                    TrackedFilter.TRACKED -> listAppFiltered.filter { it.isAlreadyTracked }
+                    TrackedFilter.NOT_TRACKED -> listAppFiltered.filter { !it.isAlreadyTracked }
+                }
+
+                listAppObjectFiltered.appRepackings = listAppFiltered
 
                 var filterResults = FilterResults();
                 filterResults.values = listAppObjectFiltered

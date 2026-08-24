@@ -16,6 +16,7 @@
 package com.github.megatronking.netbare.http;
 
 import android.annotation.SuppressLint;
+import android.os.Build;
 import androidx.annotation.NonNull;
 
 import com.github.megatronking.netbare.NetBareLog;
@@ -29,8 +30,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 
 /**
  * Http SSL codec enables Application-Layer Protocol Negotiation(ALPN).
@@ -94,6 +97,16 @@ import javax.net.ssl.SSLEngine;
 
     private void enableAlpn() {
         try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Android 10+ exposes ALPN through public SSLParameters / SSLEngine APIs.
+                // Hidden Conscrypt methods (setAlpnProtocols, setApplicationProtocols) are blocked
+                // by reflection restrictions on modern ART, so use the public surface first.
+                if (enableAlpnWithPublicApi()) {
+                    mAlpnEnabled = true;
+                    return;
+                }
+            }
+
             String sslEngineName = mSSLEngine.getClass().getSimpleName();
             if (sslEngineName.equals("Java8EngineWrapper")) {
                 enableJava8EngineWrapperAlpn();
@@ -109,6 +122,58 @@ import javax.net.ssl.SSLEngine;
         }
     }
 
+    private boolean enableAlpnWithPublicApi() {
+        try {
+            SSLParameters params = mSSLEngine.getSSLParameters();
+            if (params == null) {
+                return false;
+            }
+            String[] protocols = new String[mClientAlpns.length];
+            for (int i = 0; i < protocols.length; i++) {
+                protocols[i] = mClientAlpns[i].toString().toLowerCase();
+            }
+            params.setApplicationProtocols(protocols);
+            mSSLEngine.setSSLParameters(params);
+
+            // Session tickets and SNI are not public; try to set them reflectively but do not
+            // treat a failure as fatal. ALPN will still work in most cases without them.
+            try {
+                setUseSessionTickets(true);
+            } catch (Exception e) {
+                NetBareLog.w("setUseSessionTickets failed on public-API path: " + e.getMessage());
+            }
+            try {
+                setUseSni(true);
+            } catch (Exception e) {
+                NetBareLog.w("setUseSni failed on public-API path: " + e.getMessage());
+            }
+            return true;
+        } catch (Exception e) {
+            NetBareLog.w("Public ALPN API failed, falling back to reflection: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private void setUseSessionTickets(boolean use) throws NoSuchMethodException,
+            IllegalAccessException, InvocationTargetException {
+        Method setUseSessionTicketsMethod = mSSLEngine.getClass().getDeclaredMethod(
+                "setUseSessionTickets", boolean.class);
+        setUseSessionTicketsMethod.setAccessible(true);
+        setUseSessionTicketsMethod.invoke(mSSLEngine, use);
+    }
+
+    private void setUseSni(boolean use) throws NoSuchFieldException, IllegalAccessException {
+        Field sslParametersField = mSSLEngine.getClass().getDeclaredField("sslParameters");
+        sslParametersField.setAccessible(true);
+        Object sslParameters = sslParametersField.get(mSSLEngine);
+        if (sslParameters == null) {
+            throw new IllegalAccessException("sslParameters value is null");
+        }
+        Field useSniField = sslParameters.getClass().getDeclaredField("useSni");
+        useSniField.setAccessible(true);
+        useSniField.set(sslParameters, use);
+    }
+
     private void enableJava8EngineWrapperAlpn() throws NoSuchMethodException, IllegalAccessException,
             InvocationTargetException {
         Method setApplicationProtocolsMethod = mSSLEngine.getClass().getDeclaredMethod(
@@ -120,10 +185,7 @@ import javax.net.ssl.SSLEngine;
         }
         setApplicationProtocolsMethod.invoke(mSSLEngine, new Object[]{protocols});
 
-        Method setUseSessionTicketsMethod = mSSLEngine.getClass().getDeclaredMethod(
-                "setUseSessionTickets", boolean.class);
-        setUseSessionTicketsMethod.setAccessible(true);
-        setUseSessionTicketsMethod.invoke(mSSLEngine, true);
+        setUseSessionTickets(true);
     }
 
     private void enableConscryptEngineAlpn() throws NoSuchMethodException, IllegalAccessException,
@@ -137,10 +199,7 @@ import javax.net.ssl.SSLEngine;
         }
         setAlpnProtocolsMethod.invoke(mSSLEngine, new Object[]{protocols});
 
-        Method setUseSessionTicketsMethod = mSSLEngine.getClass().getDeclaredMethod(
-                "setUseSessionTickets", boolean.class);
-        setUseSessionTicketsMethod.setAccessible(true);
-        setUseSessionTicketsMethod.invoke(mSSLEngine, true);
+        setUseSessionTickets(true);
     }
 
     private void enableOpenSSLEngineImplAlpn() throws NoSuchFieldException, IllegalAccessException {
@@ -179,6 +238,13 @@ import javax.net.ssl.SSLEngine;
         }
         String alpnResult = null;
         try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                alpnResult = mSSLEngine.getApplicationProtocol();
+                if (alpnResult != null && !alpnResult.isEmpty()) {
+                    return alpnResult;
+                }
+            }
+
             String sslEngineName = mSSLEngine.getClass().getSimpleName();
             if (sslEngineName.equals("Java8EngineWrapper")) {
                 alpnResult = getJava8EngineWrapperAlpn();

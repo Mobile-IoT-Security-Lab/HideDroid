@@ -1,41 +1,33 @@
 package it.unige.hidedroid.activity
 
 import android.app.Activity
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.transition.Explode
 import android.util.Log
 import android.view.Window
 import android.widget.SeekBar
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.FileProvider
 import com.dave.realmdatahelper.hidedroid.ApplicationStatus
+import com.google.android.material.button.MaterialButton
 import com.dave.realmdatahelper.hidedroid.PackageNamePrivacyLevel
 import es.dmoral.toasty.Toasty
 import it.unige.hidedroid.HideDroidApplication
 import it.unige.hidedroid.R
 import it.unige.hidedroid.log.LoggerHideDroid
 import it.unige.hidedroid.realmdatahelper.UtilitiesStoreDataOnRealmDb
-import it.unige.hidedroid.task.AbstractTaskWrapper
-import it.unige.hidedroid.task.RepackageTask
+import it.unige.hidedroid.utils.FolderPicker
+import it.unige.hidedroid.utils.HideDroidStorage
+import it.unige.hidedroid.utils.InstallActions
+import it.unige.hidedroid.utils.TrackingActions
+import it.unige.hidedroid.utils.UserCertTrustChecker
 import it.unige.hidedroid.utils.Utilities
-import kotlinx.android.synthetic.main.activity_settings_app.buttonSaveSetting
-import kotlinx.android.synthetic.main.activity_settings_app.iconInstallApp
-import kotlinx.android.synthetic.main.activity_settings_app.idPackageNameInstallApp
-import kotlinx.android.synthetic.main.activity_settings_app.labelPath
-import kotlinx.android.synthetic.main.activity_settings_app.pathApk
-import kotlinx.android.synthetic.main.activity_settings_app.privacySeekBar
-import kotlinx.android.synthetic.main.activity_settings_app.textViewPrivacyLevel
-import kotlinx.android.synthetic.main.activity_settings_app_v2.*
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -44,25 +36,44 @@ class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListe
 
     private var newApkPath: String? = null
     private var apkPath: String? = null
+    private var splitApkPaths: List<String> = emptyList()
     private var appPackageNameToModify: String? = null
-    private val notifyID = 0
-    private var apkName: String? = null
     private var privacyLevel: Int = DEFAULT_VALUE_PRIVACY_LEVEL
     private var appPrivacySetting: PackageNamePrivacyLevel? = null
+    private var currentlyTrackedWithoutRepack: Boolean = false
     private var systemCaInstalled: Boolean = false
     private lateinit var isDebugEnabled: AtomicBoolean
+    private lateinit var buttonSaveSetting: android.widget.Button
+    private lateinit var iconInstallApp: android.widget.ImageView
+    private lateinit var idPackageNameInstallApp: android.widget.TextView
+    private lateinit var labelPath: android.widget.TextView
+    private lateinit var pathApk: android.widget.TextView
+    private lateinit var privacySeekBar: android.widget.SeekBar
+    private lateinit var textViewPrivacyLevel: android.widget.TextView
+    private lateinit var informationRepackaging: android.widget.TextView
+    private lateinit var textViewTrackingStatus: android.widget.TextView
+    private lateinit var buttonRepackAppView: MaterialButton
+    private lateinit var buttonNoRepackAppView: MaterialButton
 
     companion object {
         private val TAG = SaveSettingApkActivity::class.java.name
         val MSG_SAVEAPKSERVICE = "MSG_SAVEAPKSERVICE"
         val DEFAULT_VALUE_PRIVACY_LEVEL = 1
-        val APP_REMOVING = 2
-        val APP_INSTALLING = 3
     }
 
+    private lateinit var uninstallLauncher: ActivityResultLauncher<Intent>
+    private lateinit var installLauncher: ActivityResultLauncher<Intent>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        uninstallLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            handleUninstallResult(result.resultCode)
+        }
+
+        installLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            handleInstallResult(result.resultCode)
+        }
 
         with(window) {
             requestFeature(Window.FEATURE_CONTENT_TRANSITIONS)
@@ -73,6 +84,17 @@ class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListe
         }
         // single app
         setContentView(R.layout.activity_settings_app_v2)
+        buttonSaveSetting = findViewById(R.id.buttonSaveSetting)
+        iconInstallApp = findViewById(R.id.iconInstallApp)
+        idPackageNameInstallApp = findViewById(R.id.idPackageNameInstallApp)
+        labelPath = findViewById(R.id.labelPath)
+        pathApk = findViewById(R.id.pathApk)
+        privacySeekBar = findViewById(R.id.privacySeekBar)
+        textViewPrivacyLevel = findViewById(R.id.textViewPrivacyLevel)
+        informationRepackaging = findViewById(R.id.informationRepackaging)
+        textViewTrackingStatus = findViewById(R.id.textViewTrackingStatus)
+        buttonRepackAppView = findViewById(R.id.buttonRepackAppView)
+        buttonNoRepackAppView = findViewById(R.id.buttonNoRepackAppView)
 
         // list of apps
         // setContentView(R.layout.activity_select_apps)
@@ -90,23 +112,32 @@ class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListe
                 apkPath = apkAndMsgs[0] // path apk
                 appPackageNameToModify = apkAndMsgs[1] // package name
                 isInstalledIntent = apkAndMsgs[2] // if is already installed or not
+                splitApkPaths = apkAndMsgs.drop(3) // split APKs (config/density/ABI/language), if any
             }
         }
 
         // app already installed
         if (isInstalledIntent!!.toBoolean()) {
-            iconInstallApp.setImageDrawable(packageManager.getApplicationIcon(appPackageNameToModify))
+            val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getApplicationInfo(
+                        appPackageNameToModify!!,
+                        PackageManager.ApplicationInfoFlags.of(0L))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getApplicationInfo(appPackageNameToModify!!, 0)
+            }
+            iconInstallApp.setImageDrawable(appInfo.loadIcon(packageManager))
             idPackageNameInstallApp.text = appPackageNameToModify
-            apkName = getApkFileName(apkPath!!, false)
-            newApkPath = File(File(apkPath).parent, apkName + "_signed.apk").absolutePath
 
         } else {
-            iconInstallApp.setImageDrawable(packageManager.getPackageArchiveInfo(apkPath, 0)
-                    .applicationInfo.loadIcon(packageManager))
+            @Suppress("DEPRECATION")
+            val archiveInfo = packageManager.getPackageArchiveInfo(apkPath!!, 0)
+            iconInstallApp.setImageDrawable(archiveInfo?.applicationInfo?.loadIcon(packageManager))
             idPackageNameInstallApp.text = appPackageNameToModify
-            apkName = getApkFileName(apkPath!!, true)
-            newApkPath = apkPath!!
         }
+        newApkPath = HideDroidStorage.getRepackedApkFile(appPackageNameToModify!!).absolutePath
+
+        isDebugEnabled = (this.application as HideDroidApplication).isDebugEnabled
 
         // modify text if app already repacked or not
         changeButtonSettings()
@@ -118,8 +149,16 @@ class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListe
         buttonSaveSetting.setOnClickListener {
             clickSaveSettingsButton()
         }
-
-        isDebugEnabled = (this.application as HideDroidApplication).isDebugEnabled
+        buttonRepackAppView.setOnClickListener {
+            setUpOutputFolderThenRepack()
+        }
+        buttonNoRepackAppView.setOnClickListener {
+            if (currentlyTrackedWithoutRepack) {
+                resetTracking()
+            } else {
+                interceptWithoutModification()
+            }
+        }
     }
 
     override fun onResume() {
@@ -138,102 +177,35 @@ class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListe
         super.onRestart()
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
+    private fun handleUninstallResult(resultCode: Int) {
+        InstallActions.onUninstallResult(this, resultCode, installLauncher)
+    }
 
-        if (requestCode == APP_REMOVING) {
-            val appStatus = UtilitiesStoreDataOnRealmDb.getStatusAppFromPackageName(appPackageNameToModify!!)
-
-            if (resultCode == Activity.RESULT_OK && appStatus != null) {
-                LoggerHideDroid.d(TAG, "App Removed successfully")
-                appStatus.update(ApplicationStatus(isRepackaged = true, isInRemoving = false))
-                appStatus.storeStateApp()
-                Toasty.success(this, "App Removed Successfully").show()
-
-            } else if (resultCode == Activity.RESULT_FIRST_USER && appStatus != null) {
-                if (isDebugEnabled.get()) {
-                    Log.e("appNotRemoved", "App not removed. Status: $appStatus. ResultCode: $resultCode")
-                }
-                LoggerHideDroid.d(TAG, "App Not Removed")
-                Toasty.error(this, "App Not Removed").show()
-                appStatus.update(ApplicationStatus(isRepackaged = true, isInRemoving = false))
-                appStatus.storeStateApp()
-
-            } else {
-                if (isDebugEnabled.get()) {
-                    Log.e("errorUninstalling", "Unknown problem during uninstall. Status: $appStatus. ResultCode: $resultCode")
-                }
-            }
-
-        } else if (requestCode == APP_INSTALLING) {
-            val appStatus = UtilitiesStoreDataOnRealmDb.getStatusAppFromPackageName(appPackageNameToModify!!)
-            if (resultCode == Activity.RESULT_OK && appStatus != null) {
-                LoggerHideDroid.d(TAG, "App Modified Installed Succesfully")
-
-                appStatus.update(ApplicationStatus(installed = true, isRepackaged = true))
-                appStatus.storeStateApp()
-                val packageNamePrivacyLevel = PackageNamePrivacyLevel(
-                        packageName = appPackageNameToModify!!,
-                        isInstalled = true,
-                        privacyLevel = privacyLevel)
-                packageNamePrivacyLevel.storePrivacySettings()
-                (this.application as HideDroidApplication).selectedPrivacyLevelsLock.lock()
-                try {
-                    if ((this.application as HideDroidApplication).selectedPrivacyLevels[appPackageNameToModify!!] != null) {
-                        (this.application as HideDroidApplication).selectedPrivacyLevels[appPackageNameToModify!!]!!.set(privacyLevel)
-                    } else {
-                        (this.application as HideDroidApplication).selectedPrivacyLevels[appPackageNameToModify!!] = AtomicInteger(privacyLevel)
-                    }
-                } finally {
-                    (this.application as HideDroidApplication).selectedPrivacyLevelsLock.unlock()
-                }
-                Toasty.success(this, "Privacy Settings Stored and App Installed").show()
-
-                AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
-                        .setMessage(R.string.dialog_message)
-                        ?.setTitle(R.string.dialog_title)
-                        ?.setPositiveButton(R.string.dialog_button) { _, _ -> }
-                        ?.create()
-                        ?.show()
-
-            } else if (resultCode == Activity.RESULT_FIRST_USER && appStatus != null) {
-                if (isDebugEnabled.get()) {
-                    Log.e("appNotInstalled", "App not installed. Status: $appStatus. ResultCode: $resultCode")
-                }
-                LoggerHideDroid.d(TAG, "App Not Installed")
-                appStatus.update(ApplicationStatus(installed = false, isRepackaged = true))
-                appStatus.storeStateApp()
-
-                val packageNamePrivacyLevel = PackageNamePrivacyLevel(
-                        packageName = appPackageNameToModify!!,
-                        isInstalled = false,
-                        privacyLevel = privacyLevel)
-                packageNamePrivacyLevel.storePrivacySettings()
-                (this.application as HideDroidApplication).selectedPrivacyLevelsLock.lock()
-                try {
-                    if ((this.application as HideDroidApplication).selectedPrivacyLevels[appPackageNameToModify!!] != null) {
-                        (this.application as HideDroidApplication).selectedPrivacyLevels[appPackageNameToModify!!]!!.set(privacyLevel)
-                    } else {
-                        (this.application as HideDroidApplication).selectedPrivacyLevels[appPackageNameToModify!!] = AtomicInteger(privacyLevel)
-                    }
-                } finally {
-                    (this.application as HideDroidApplication).selectedPrivacyLevelsLock.unlock()
-                }
-                Toasty.error(this, "App Not Installed").show()
-
-            } else {
-                if (isDebugEnabled.get()) {
-                    Log.e("errorAppInstalling", "Unknown problem during app install. Status: $appStatus. ResultCode: $resultCode")
-                }
-            }
+    private fun handleInstallResult(resultCode: Int) {
+        InstallActions.onInstallResult(this, resultCode, appPackageNameToModify!!, privacyLevel)
+        if (resultCode == Activity.RESULT_OK) {
+            AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
+                    .setMessage(R.string.dialog_message)
+                    ?.setTitle(R.string.dialog_title)
+                    ?.setPositiveButton(R.string.dialog_button) { _, _ -> }
+                    ?.create()
+                    ?.show()
         }
     }
 
     fun changeButtonSettings() {
         val appPrivacySetting = UtilitiesStoreDataOnRealmDb.getPrivacySettingAppFromPackageName(appPackageNameToModify!!)
         systemCaInstalled = this.getPreferences(Context.MODE_PRIVATE).getBoolean(getString(R.string.key_root_certificate_preference), false)
+        updateTrackingStatus(appPrivacySetting)
         when {
             systemCaInstalled -> {
+                buttonSaveSetting.text = getString(R.string.click_to_save_settings)
+                labelPath.text = ""
+                pathApk.text = ""
+                informationRepackaging.text = getString(R.string.informative_apply_privacy_level)
+            }
+
+            appAlreadyTrustsUserCerts() -> {
                 buttonSaveSetting.text = getString(R.string.click_to_save_settings)
                 labelPath.text = ""
                 pathApk.text = ""
@@ -277,12 +249,42 @@ class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListe
         }
     }
 
+    /** Refreshes the Repack/No repack/Tracked status label and which of the two mode buttons shows as active (green). */
+    private fun updateTrackingStatus(appPrivacySetting: PackageNamePrivacyLevel?) {
+        val isRepackaged = if (appPrivacySetting != null) {
+            UtilitiesStoreDataOnRealmDb.getStatusAppFromPackageName(appPackageNameToModify!!)?.isRepackaged
+        } else {
+            null
+        }
+        textViewTrackingStatus.text = when {
+            appPrivacySetting == null -> getString(R.string.status_not_tracked)
+            isRepackaged == true -> getString(R.string.status_tracked_repacked)
+            isRepackaged == false -> getString(R.string.status_tracked_no_repack)
+            else -> getString(R.string.status_not_tracked)
+        }
+        // Both stay tappable: tapping the already-active No repack button resets tracking
+        // instead of no-op'ing (see buttonNoRepackAppView's click listener).
+        buttonRepackAppView.isChecked = isRepackaged == true
+        buttonNoRepackAppView.isChecked = isRepackaged == false
+        currentlyTrackedWithoutRepack = isRepackaged == false
+    }
+
+    /** Tapping "No repack" while it's already the active mode drops tracking entirely instead of re-applying it. */
+    private fun resetTracking() {
+        TrackingActions.resetTracking(this, appPackageNameToModify!!)
+        changeButtonSettings()
+        Toasty.info(this, getString(R.string.reset_tracking_result)).show()
+    }
+
     private fun clickSaveSettingsButton() {
         systemCaInstalled = this.getPreferences(Context.MODE_PRIVATE).getBoolean(getString(R.string.key_root_certificate_preference), false)
         appPrivacySetting = UtilitiesStoreDataOnRealmDb.getPrivacySettingAppFromPackageName(appPackageNameToModify!!)
         if (appPrivacySetting == null || !appPrivacySetting!!.isInstalled) {
             if (Utilities.isVersionGreaterThanNougat()) {
                 when {
+                    appAlreadyTrustsUserCerts() -> {
+                        storePrivacySettingsForTrustedApp()
+                    }
                     systemCaInstalled -> {
                         val packageNamePrivacyLevel = PackageNamePrivacyLevel(
                                 packageName = appPackageNameToModify!!,
@@ -366,6 +368,55 @@ class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListe
         return file.exists()
     }
 
+    private fun appAlreadyTrustsUserCerts(): Boolean {
+        val path = apkPath ?: return false
+        val file = File(path)
+        if (!file.exists()) return false
+        return try {
+            UserCertTrustChecker.apkTrustsUserCertificates(this, file)
+        } catch (e: Exception) {
+            if (isDebugEnabled.get()) {
+                Log.e(TAG, "Failed to check user-cert trust for ${file.name}", e)
+            }
+            false
+        }
+    }
+
+    private fun storePrivacySettingsForTrustedApp() {
+        val packageName = appPackageNameToModify!!
+        val packageNamePrivacyLevel = PackageNamePrivacyLevel(
+                packageName = packageName,
+                isInstalled = true,
+                privacyLevel = privacyLevel
+        )
+        packageNamePrivacyLevel.storePrivacySettings()
+        (this.application as HideDroidApplication).selectedPrivacyLevelsLock.lock()
+        try {
+            if ((this.application as HideDroidApplication).selectedPrivacyLevels[packageName] != null) {
+                (this.application as HideDroidApplication).selectedPrivacyLevels[packageName]!!.set(privacyLevel)
+            } else {
+                (this.application as HideDroidApplication).selectedPrivacyLevels[packageName] = AtomicInteger(privacyLevel)
+            }
+        } finally {
+            (this.application as HideDroidApplication).selectedPrivacyLevelsLock.unlock()
+        }
+
+        var appStatus = UtilitiesStoreDataOnRealmDb.getStatusAppFromPackageName(packageName)
+        val status = ApplicationStatus(
+                packageName = packageName,
+                installed = true,
+                isRepackaged = true
+        )
+        if (appStatus != null) {
+            appStatus.update(status)
+        } else {
+            appStatus = status
+        }
+        appStatus.storeStateApp()
+
+        Toasty.success(this, "Privacy Settings Updated").show()
+    }
+
     private fun startRepacking() {
 
         val alertDialogBuilder = AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
@@ -373,7 +424,10 @@ class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListe
                 .setTitle(getString(R.string.android_versione_7))
                 .setMessage(getString(R.string.ask_app_modification))
                 .setPositiveButton("Yes") { dialog, _ ->
-                    performRepacking(apkPath!!)
+                    setUpOutputFolderThenRepack()
+                }
+                .setNeutralButton(R.string.action_try_without_modification) { _, _ ->
+                    interceptWithoutModification()
                 }
                 .setNegativeButton("No") { dialog, _ -> dialog.cancel() }
 
@@ -381,140 +435,45 @@ class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListe
         alertDialog.show()
     }
 
-    private fun performRepacking(apkPath: String) {
-        // create notification channel if needed
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name: CharSequence = getString(R.string.channel_name_notification)
-            val description = "test description"
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel(getString(R.string.channel_id_notification), name, importance)
-            channel.description = description
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
+    /** Setup step: pick where decompile/build artifacts land before the repack actually starts. */
+    private fun setUpOutputFolderThenRepack() {
+        Toasty.info(this, getString(R.string.output_folder_setup_message)).show()
+        FolderPicker.choose(this, HideDroidStorage.prepareBaseDir(this)) { chosenDir ->
+            HideDroidStorage.setOutputFolder(this, chosenDir)
+
+            apkPath = relocate(apkPath!!, chosenDir)
+            splitApkPaths = splitApkPaths.map { relocate(it, chosenDir) }
+            performRepacking(apkPath!!, splitApkPaths)
         }
-
-        // create notification
-        val startNotification = NotificationCompat.Builder(this, "test id")
-                .setSmallIcon(R.mipmap.ic_launcher_circle)
-                .setContentTitle(getString(R.string.app_name))
-                .setContentText("Repackaging $appPackageNameToModify")
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setAutoCancel(true)
-
-        val notificationManager = NotificationManagerCompat.from(this)
-        notificationManager.notify(notifyID, startNotification.build())
-
-        val files = Array(1) { File(apkPath) }
-        val wrapper = AbstractTaskWrapper((this.application as HideDroidApplication).selectedPrivacyLevels, (this.application as HideDroidApplication).selectedPrivacyLevelsLock, files, isDebugEnabled)
-        RepackageTask(this, apkName).execute(wrapper)
-
-        var appStatus = UtilitiesStoreDataOnRealmDb.getStatusAppFromPackageName(appPackageNameToModify!!)
-        if (appStatus != null) {
-            appStatus.update(com.dave.realmdatahelper.hidedroid.ApplicationStatus(packageName = appPackageNameToModify!!, isInRepackaging = true))
-        } else {
-            appStatus = com.dave.realmdatahelper.hidedroid.ApplicationStatus(packageName = appPackageNameToModify!!, isInRepackaging = true)
-            appStatus.storeStateApp()
-        }
-        /*
-    UtilitiesStoreDataOnDb.storeStateApp(packageName = appPackageNameToModify!!, isInRepackaging = true)
-    */
     }
 
-    private fun getApkFileName(path: String, isSigned: Boolean): String? {
-        return if (!isSigned) {
-            if (path.substring(path.length - 4) == ".apk") {
-                path.substring(path.lastIndexOf("/") + 1, path.length - 4)
-            } else null
-        } else {
-            if (path.substring(path.length - 11) == "_signed.apk") {
-                path.substring(path.lastIndexOf("/") + 1, path.length - 11)
-            } else null
+    private fun relocate(path: String, chosenDir: File): String {
+        val current = File(path)
+        val relocated = File(chosenDir, current.name)
+        if (relocated.absolutePath != current.absolutePath) {
+            Utilities.copyFile(current, relocated)
         }
+        return relocated.absolutePath
+    }
+
+    /**
+     * Tracks the app without repackaging it. Cleartext traffic is always
+     * intercepted; TLS traffic is intercepted only when the app already trusts
+     * user certificates (targetSdk lower than 24, a networkSecurityConfig that
+     * accepts user CAs, or the HideDroid CA installed in the system store).
+     */
+    private fun interceptWithoutModification() {
+        TrackingActions.trackWithoutRepack(this, appPackageNameToModify!!, privacyLevel)
+        changeButtonSettings()
+        Toasty.info(this, getString(R.string.intercept_without_modification_result)).show()
+    }
+
+    private fun performRepacking(apkPath: String, splitApkPaths: List<String> = emptyList()) {
+        TrackingActions.startRepack(this, appPackageNameToModify!!, apkPath, splitApkPaths)
     }
 
     private fun installApk() {
-
-        // install application
-        val newApkFile = File(newApkPath)
-        // Check if the app is already installed.
-        val pi = packageManager.getPackageArchiveInfo(newApkPath, 0)
-        if (pi != null) {
-            val installed: Boolean = try {
-                packageManager.getPackageInfo(pi.packageName, PackageManager.GET_ACTIVITIES)
-                true
-            } catch (e: PackageManager.NameNotFoundException) {
-                false
-            }
-
-            if (installed) {
-                val alertDialogBuilder = AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
-                alertDialogBuilder
-                        .setTitle(getString(R.string.app_already_installed))
-                        .setMessage(getString(R.string.ask_removing_app))
-                        .setPositiveButton("Yes") { dialog, id ->
-                            // new
-                            val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE,
-                                    Uri.fromParts("package", pi.packageName, null))
-                            intent.putExtra(Intent.EXTRA_RETURN_RESULT, true)
-                            startActivityForResult(intent, APP_REMOVING)
-
-                            // OLD
-                            // val intent = Intent(Intent.ACTION_DELETE,
-                            // Uri.fromParts("package", pi.packageName, null))
-                            //startActivity(intent)
-                            var appStatus = UtilitiesStoreDataOnRealmDb.getStatusAppFromPackageName(appPackageNameToModify!!)
-                            if (appStatus != null) {
-                                appStatus!!.update(com.dave.realmdatahelper.hidedroid.ApplicationStatus(packageName = appPackageNameToModify!!, isInRemoving = true, isInRepackaging = true))
-                            } else {
-                                appStatus = com.dave.realmdatahelper.hidedroid.ApplicationStatus(packageName = appPackageNameToModify!!, isInRemoving = true, isInRepackaging = true)
-                                appStatus.storeStateApp()
-                            }
-                            /*
-                            UtilitiesStoreDataOnDb.storeStateApp(packageName = appPackageNameToModify!!,
-                                    isInRemoving = true, isRepackaged = true)
-                            */
-
-
-                        }
-                        .setNegativeButton("No") { dialog, id -> dialog.cancel() }
-                val alertDialog = alertDialogBuilder.create()
-                alertDialog.show()
-                return
-            }
-        }
-
-        val uri: Uri
-        uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            FileProvider.getUriForFile(this,
-                    applicationContext.packageName + ".fileprovider", newApkFile)
-        } else {
-            Uri.fromFile(newApkFile)
-        }
-
-        /* OLD
-        val intent = Intent(Intent.ACTION_VIEW)
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-        intent.setDataAndType(uri, "application/vnd.android.package-archive")
-        startActivity(intent)
-        */
-
-        val intent = Intent(Intent.ACTION_INSTALL_PACKAGE)
-        intent.putExtra(Intent.EXTRA_RETURN_RESULT, true)
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-        intent.setDataAndType(uri, "application/vnd.android.package-archive")
-        startActivityForResult(intent, APP_INSTALLING)
-
-        // store data
-        var applicationStatus = UtilitiesStoreDataOnRealmDb.getStatusAppFromPackageName(appPackageNameToModify!!)
-        if (applicationStatus != null)
-            applicationStatus.update(com.dave.realmdatahelper.hidedroid.ApplicationStatus(isInInstalling = true))
-        else
-            applicationStatus = com.dave.realmdatahelper.hidedroid.ApplicationStatus(appPackageNameToModify!!, isInInstalling = true)
-        applicationStatus.storeStateApp()
-        //UtilitiesStoreDataOnDb.storeStateApp(packageName = appPackageNameToModify!!,
-        //    isInInstalling = true)
-
+        InstallActions.installSignedApk(this, appPackageNameToModify!!, newApkPath!!, privacyLevel, uninstallLauncher, installLauncher)
     }
 
     override fun onProgressChanged(p0: SeekBar?, p1: Int, p2: Boolean) {

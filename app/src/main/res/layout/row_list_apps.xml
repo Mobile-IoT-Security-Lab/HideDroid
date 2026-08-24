@@ -13,7 +13,8 @@
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="wrap_content"
+        >
 
         <ImageView
             android:id="@+id/iconAppRepacking"
@@ -25,6 +26,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.208"
             app:srcCompat="@android:drawable/sym_def_app_icon" />
 
         <com.google.android.material.textview.MaterialTextView
@@ -34,8 +36,8 @@
             android:layout_marginStart="64dp"
             android:layout_marginTop="8dp"
             android:fontFamily="@font/roboto"
-            android:textColor="@android:color/black"
             android:text="package_name"
+            android:textColor="@android:color/black"
             android:textSize="14sp"
             app:layout_constraintStart_toEndOf="@+id/iconAppRepacking"
             app:layout_constraintTop_toTopOf="@+id/iconAppRepacking" />
@@ -45,15 +47,90 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:layout_marginEnd="8dp"
-            android:layout_marginBottom="8dp"
             android:text="Installed"
             android:textColor="@color/icon_background"
             android:textStyle="italic"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="@+id/idPackageName"
+            app:layout_constraintStart_toStartOf="@+id/idPackageName"
             app:layout_constraintTop_toBottomOf="@+id/idPackageName" />
 
+        <LinearLayout
+            android:id="@+id/trackingModeButtons"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="8dp"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="@+id/idPackageName"
+            app:layout_constraintTop_toBottomOf="@+id/isInstalled">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonTrackNoRepack"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:elevation="4dp"
+                android:fontFamily="@font/roboto"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:paddingStart="10dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="4dp"
+                android:text="@string/action_track_no_repack_short"
+                android:textColor="@android:color/black"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/repack_mode_button_background"
+                android:checkable="true"
+                app:cornerRadius="20sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonTrackRepack"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:elevation="4dp"
+                android:fontFamily="@font/roboto"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:paddingStart="10dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="4dp"
+                android:text="@string/action_track_repack_short"
+                android:textColor="@android:color/black"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/repack_mode_button_background"
+                android:checkable="true"
+                app:cornerRadius="20sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonInstallRepacked"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:elevation="4dp"
+                android:fontFamily="@font/roboto"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:paddingStart="10dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="4dp"
+                android:text="@string/action_install_repacked_short"
+                android:textColor="@android:color/black"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                app:cornerRadius="20sp"
+                android:visibility="gone" />
+
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.cardview.widget.CardView>

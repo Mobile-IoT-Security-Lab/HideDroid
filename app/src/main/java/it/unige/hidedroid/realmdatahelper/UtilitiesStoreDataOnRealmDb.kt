@@ -32,6 +32,18 @@ object UtilitiesStoreDataOnRealmDb {
         return eventBufferToReturn!!
     }
 
+    fun getAllAnalyticsRequest(): MutableList<com.dave.realmdatahelper.hidedroid.AnalyticsRequest> {
+        LoggerHideDroid.d(TAG, "getAllAnalyticsRequest")
+
+        var list: MutableList<com.dave.realmdatahelper.hidedroid.AnalyticsRequest>? = null
+        val realm = Realm.getDefaultInstance()
+        realm.use { realm ->
+            val realmResult = realm.where<com.dave.realmdatahelper.hidedroid.AnalyticsRequest>().findAll()
+            list = realm.copyFromRealm(realmResult) as MutableList<com.dave.realmdatahelper.hidedroid.AnalyticsRequest>
+        }
+        return list!!
+    }
+
     fun getAllApplicationStatus() : MutableList<com.dave.realmdatahelper.hidedroid.ApplicationStatus> {
         LoggerHideDroid.d(TAG, "getAllApplicationStatus")
 

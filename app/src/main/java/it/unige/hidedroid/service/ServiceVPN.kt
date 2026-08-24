@@ -29,15 +29,13 @@ class ServiceVPN: NetBareService(){
     }
 
     override fun createNotification(): Notification {
-        // TODO change image and description notification
-        //Toasty.info(applicationContext, "CreateNotification").show()
         val intent = Intent(this, MainActivity::class.java)
         intent.addCategory(Intent.CATEGORY_LAUNCHER)
         intent.action = Intent.ACTION_MAIN
         val pendingIntent = PendingIntent.getActivity(this, 0, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT)
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, getString(R.string.channel_id_notification))
-                .setSmallIcon(R.mipmap.ic_launcher_circle)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(R.string.start_incognito_mode))
                 .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))

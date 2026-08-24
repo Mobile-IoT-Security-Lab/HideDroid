@@ -26,17 +26,79 @@
 
 
 
+    <LinearLayout
+        android:id="@+id/trackedFilterGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        android:background="@android:color/white"
+        android:orientation="horizontal"
+        android:visibility="visible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/filterAll"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:text="@string/filter_all"
+            android:textSize="11sp"
+            android:textColor="@color/filter_button_text"
+            app:backgroundTint="@color/filter_button_background"
+            app:cornerRadius="4dp"
+            app:strokeColor="@color/colorPrimary"
+            app:strokeWidth="1dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/filterTracked"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:textSize="11sp"
+            android:insetBottom="0dp"
+            android:text="@string/filter_tracked"
+            android:textColor="@color/filter_button_text"
+            app:backgroundTint="@color/filter_button_background"
+            app:cornerRadius="4dp"
+            app:strokeColor="@color/colorPrimary"
+            app:strokeWidth="1dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/filterNotTracked"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:insetTop="0dp"
+            android:textSize="11sp"
+            android:insetBottom="0dp"
+            android:text="@string/filter_not_tracked"
+            android:textColor="@color/filter_button_text"
+            app:backgroundTint="@color/filter_button_background"
+            app:cornerRadius="4dp"
+            app:strokeColor="@color/colorPrimary"
+            app:strokeWidth="1dp" />
+
+    </LinearLayout>
+
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeApk"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
         android:layout_marginTop="8dp"
         android:padding="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintVertical_bias="0.604">
+        app:layout_constraintTop_toBottomOf="@+id/trackedFilterGroup">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewListApps"

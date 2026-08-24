@@ -4,6 +4,8 @@ import android.content.pm.PackageManager
 import android.util.Log
 import com.dave.anonymization_data.anonymizationthreads.DataAnonymizer
 import com.dave.realmdatahelper.debug.PrivateTracker
+import com.dave.realmdatahelper.debug.Request as DebugRequest
+import com.dave.realmdatahelper.debug.Error as DebugError
 import com.dave.realmdatahelper.hidedroid.AnalyticsRequest
 import com.github.megatronking.netbare.http.HttpIndexedInterceptor
 import com.github.megatronking.netbare.http.HttpInterceptorFactory
@@ -18,6 +20,8 @@ import it.unige.hidedroid.interceptor.UtilsHttpInterceptor.isAnalyticsRequest
 import it.unige.hidedroid.log.LoggerHideDroid
 import it.unige.hidedroid.realmdatahelper.TrackersMappingDomainName
 import it.unige.hidedroid.realmdatahelper.UtilitiesStoreDataOnRealmDb
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import java.net.URLDecoder
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
@@ -29,6 +33,7 @@ class HttpInterceptor(var packageManager: PackageManager,
                       var trackersMappingDomainName: TrackersMappingDomainName,
                       var listAppToMonitoring: MutableList<String>,
                       var realmConfigPrivateTracker: RealmConfiguration,
+                      var realmConfigLog: RealmConfiguration,
                       var listPrivateFields: List<String>,
                       var isDebugEnabled: AtomicBoolean,
                       var idPacket: AtomicLong,
@@ -46,23 +51,29 @@ class HttpInterceptor(var packageManager: PackageManager,
                           trackersMappingDomainName: TrackersMappingDomainName,
                           listAppToMonitoring: MutableList<String>,
                           realmConfigPrivateTracker: RealmConfiguration,
+                          realmConfigLog: RealmConfiguration,
                           listPrivateFields: List<String>,
                           isDebugEnabled: AtomicBoolean,
                           dataAnonymizer: DataAnonymizer): HttpInterceptorFactory {
 
-            var idPacket = AtomicLong(0)
-            val realm = Realm.getDefaultInstance()
-            realm.use { realm ->
-                realm.executeTransaction { realm ->
-                    val result = realm.where<AnalyticsRequest>().max("id")
-                    if (result != null) {
-                        idPacket = AtomicLong(result.toLong() + 1)
+            // createFactory() is invoked from the UI thread while assembling the VPN config,
+            // but Realm no longer allows write transactions on the UI thread. Compute the
+            // next packet id on an IO dispatcher so the transaction runs off the main thread.
+            val idPacket = runBlocking(Dispatchers.IO) {
+                Realm.getDefaultInstance().use { realm ->
+                    var nextId = 0L
+                    realm.executeTransaction { r ->
+                        val result = r.where<AnalyticsRequest>().max("id")
+                        if (result != null) {
+                            nextId = result.toLong() + 1
+                        }
                     }
+                    AtomicLong(nextId)
                 }
             }
 
             LoggerHideDroid.d(TAG, "I'm doing createFactory in HttpInterceptor")
-            return HttpInterceptorFactory { HttpInterceptor(packageManager, trackersMappingDomainName, listAppToMonitoring, realmConfigPrivateTracker, listPrivateFields, isDebugEnabled, idPacket, dataAnonymizer) }
+            return HttpInterceptorFactory { HttpInterceptor(packageManager, trackersMappingDomainName, listAppToMonitoring, realmConfigPrivateTracker, realmConfigLog, listPrivateFields, isDebugEnabled, idPacket, dataAnonymizer) }
         }
     }
 
@@ -139,6 +150,10 @@ class HttpInterceptor(var packageManager: PackageManager,
                                             } catch (exception: Exception) {
                                                 if (isDebugEnabled.get()) {
                                                     Log.e("errorGzipDecompression", "Error on gzip decompressing: $exception")
+                                                    try {
+                                                        storeDebugError(packageNameApp, host, requestHeadersString, "",
+                                                                "gzip decompressing: ${exception.message}")
+                                                    } catch (e: Exception) { /* ignore */ }
                                                 }
                                                 exception.printStackTrace()
                                             }
@@ -157,6 +172,10 @@ class HttpInterceptor(var packageManager: PackageManager,
                                     } catch (exception: Exception) {
                                         if (isDebugEnabled.get()) {
                                             Log.e("errorFlurryDecoding", "Error on flurry decoding: $exception")
+                                            try {
+                                                storeDebugError(packageNameApp, host, requestHeadersString, bodyDecodedAndParsed,
+                                                        "flurry decoding: ${exception.message}")
+                                            } catch (e: Exception) { /* ignore */ }
                                         }
                                         exception.printStackTrace()
                                     }
@@ -181,6 +200,10 @@ class HttpInterceptor(var packageManager: PackageManager,
                                             } catch (exception: Exception) {
                                                 if (isDebugEnabled.get()) {
                                                     Log.e("errorDeflateDecompressing", "Error on deflate decompressing: $exception")
+                                                    try {
+                                                        storeDebugError(packageNameApp, host, requestHeadersString, "",
+                                                                "deflate decompressing: ${exception.message}")
+                                                    } catch (e: Exception) { /* ignore */ }
                                                 }
                                                 exception.printStackTrace()
                                             }
@@ -196,6 +219,10 @@ class HttpInterceptor(var packageManager: PackageManager,
                                     } catch (e: Exception) {
                                         if (isDebugEnabled.get()) {
                                             Log.e("errorStandardDecoding", "Error on standard decoding: $e")
+                                            try {
+                                                storeDebugError(packageNameApp, host, requestHeadersString, data,
+                                                        "standard decoding: ${e.message}")
+                                            } catch (ex: Exception) { /* ignore */ }
                                         }
                                         e.printStackTrace()
                                     }
@@ -249,6 +276,17 @@ class HttpInterceptor(var packageManager: PackageManager,
                                 )
                                 LoggerHideDroid.d(TAG, "Increments idPacket variable: ${idPacket.get()}")
                                 analyticsRequest.insertOrUpdateEventBuffer()
+
+                                if (isDebugEnabled.get()) {
+                                    try {
+                                        storeDebugRequest(id, packageNameApp, host, requestHeadersString,
+                                                bodyString, chain.request().method().toString(),
+                                                chain.request().path(), chain.request().time(),
+                                                isTracked, isPrivate, chain.request().httpProtocol().toString())
+                                    } catch (e: Exception) {
+                                        LoggerHideDroid.e(TAG, "Failed to store debug request: $e")
+                                    }
+                                }
 
                                 val box = DataAnonymizer.Box(analyticsRequest, buffer)
                                 dataAnonymizer.requestToAnonymizeLock.lock()
@@ -325,6 +363,48 @@ class HttpInterceptor(var packageManager: PackageManager,
         if (isTracked || isPrivate) {
             if (index == 0) {
                 Log.d(TAG, "Response from ${chain.response().host()}:\n${String(buffer.array(), StandardCharsets.UTF_8)}")
+            }
+        }
+    }
+
+    private fun storeDebugRequest(id: Long, packageName: String, host: String, headers: String,
+                                  body: String, method: String, path: String, timeStamp: Long,
+                                  isTracked: Boolean, isPrivate: Boolean, httpProtocol: String) {
+        Realm.getInstance(realmConfigLog).use { realm ->
+            val debugRequest = DebugRequest(
+                    id,
+                    packageName,
+                    host,
+                    headers,
+                    body,
+                    method,
+                    path,
+                    timeStamp,
+                    isTracked,
+                    isPrivate,
+                    httpProtocol
+            )
+            realm.executeTransaction { r ->
+                r.insertOrUpdate(debugRequest)
+            }
+        }
+    }
+
+    private fun storeDebugError(packageName: String, host: String, headers: String, body: String,
+                                error: String) {
+        Realm.getInstance(realmConfigLog).use { realm ->
+            val nextId = realm.where<DebugError>().max("id")?.let { it.toLong() + 1 } ?: 1L
+            val debugError = DebugError(
+                    nextId,
+                    packageName,
+                    host,
+                    headers,
+                    body,
+                    error,
+                    System.currentTimeMillis()
+            )
+            realm.executeTransaction { r ->
+                r.insertOrUpdate(debugError)
             }
         }
     }

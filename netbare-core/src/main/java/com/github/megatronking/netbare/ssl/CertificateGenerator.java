@@ -74,7 +74,6 @@ public final class CertificateGenerator {
 
     private static final String KEY_STORE_TYPE = "PKCS12";
     private static final String KEYGEN_ALGORITHM = "RSA";
-    private static final String SECURE_RANDOM_ALGORITHM = "SHA1PRNG";
 
     private static final String PROVIDER_NAME = BouncyCastleProvider.PROVIDER_NAME;
 
@@ -198,7 +197,7 @@ public final class CertificateGenerator {
 
     private KeyPair generateKeyPair(int keySize) throws NoSuchAlgorithmException {
         KeyPairGenerator generator = KeyPairGenerator.getInstance(KEYGEN_ALGORITHM);
-        SecureRandom secureRandom = SecureRandom.getInstance(SECURE_RANDOM_ALGORITHM);
+        SecureRandom secureRandom = new SecureRandom();
         generator.initialize(keySize, secureRandom);
         return generator.generateKeyPair();
     }

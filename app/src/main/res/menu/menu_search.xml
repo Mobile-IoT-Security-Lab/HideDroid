@@ -10,4 +10,10 @@
         android:title="Search"
         app:actionViewClass="androidx.appcompat.widget.SearchView"
         app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_show_repacked_apps"
+        android:orderInCategory="200"
+        android:title="@string/action_show_repacked_apps"
+        app:showAsAction="never" />
 </menu>
