@@ -64,6 +64,22 @@ public class SignatureManager {
         this.logger.info(String.format("Signed apk saved in %s", outputApk));
     }
 
+    /**
+     * Signer certificate of [apk], read directly via apksig's own zip/signature
+     * parsing rather than PackageManager#getPackageArchiveInfo - the latter routes
+     * through the framework's full split-aware PackageParser, which refuses to
+     * resolve a package (returns null) when the base APK's manifest requires
+     * config splits that aren't present alongside it, e.g. via isSplitRequired.
+     */
+    public static byte[] getSignerCertificate(File apk) throws Exception {
+        ApkVerifier.Result result = new ApkVerifier.Builder(apk).build().verify();
+        List<X509Certificate> certs = result.getSignerCertificates();
+        if (certs == null || certs.isEmpty()) {
+            return null;
+        }
+        return certs.get(0).getEncoded();
+    }
+
     public boolean verify(File apk) {
         ApkVerifier.Builder builder = new ApkVerifier.Builder(apk);
         ApkVerifier verifier = builder.build();

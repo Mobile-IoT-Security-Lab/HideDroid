@@ -31,7 +31,7 @@ class AppReceiver : BroadcastReceiver() {
                     applicationStatus?.deleteThisFromRealm()
                     packageNamePrivacyLevel?.deleteThisFromRealm()
 
-                    val appContext = context as HideDroidApplication
+                    val appContext = context?.applicationContext as HideDroidApplication
                     appContext.selectedPrivacyLevelsLock.lock()
                     try {
                         appContext.selectedPrivacyLevels.remove(packageName)

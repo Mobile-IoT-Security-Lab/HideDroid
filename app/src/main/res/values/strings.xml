@@ -21,6 +21,9 @@
 
     <string name="action_track_repack_short">Repack</string>
     <string name="action_install_repacked_short">Install</string>
+    <string name="action_delete_repacked_short">Delete</string>
+    <string name="delete_repacked_confirm">Delete the repacked APK for %1$s? This only removes the file from %2$s, it does not uninstall anything.</string>
+    <string name="delete_repacked_done">Deleted</string>
     <string name="action_track_no_repack_short">No repack</string>
     <string name="status_tracked_repacked">Tracked (repacked)</string>
     <string name="status_tracked_no_repack">Tracked (no repack)</string>

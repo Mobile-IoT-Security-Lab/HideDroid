@@ -1,7 +1,6 @@
 package it.unige.hidedroid.task;
 
 import android.content.Context;
-import android.content.pm.PackageInfo;
 import android.util.Log;
 
 import com.dave.realmdatahelper.hidedroid.ApplicationStatus;
@@ -19,6 +18,7 @@ import java.util.logging.Level;
 
 import apktool.module.Apktool;
 import apktool.module.SignatureManager;
+import apktool.module.split.SplitApkMerger;
 import brut.androlib.meta.ApkInfo;
 import it.unige.hidedroid.R;
 import it.unige.hidedroid.utils.HideDroidStorage;
@@ -59,7 +59,9 @@ public class RepackageTask extends AbstractTask {
 
         // Fast path: if the APK already trusts user certificates, there is no
         // need to decode, patch, rebuild and sign it. The user-installed CA will
-        // be trusted as soon as the app is selected.
+        // be trusted as soon as the app is selected. The trust check only ever
+        // looks at the base APK's own network security config, so it runs
+        // before any split merging.
         boolean appAlreadyRepackaged = UserCertTrustChecker.apkTrustsUserCertificates(this.ctx.getApplicationContext(), f);
         if (appAlreadyRepackaged) {
             info("APK already trusts user certificates; skipping repackaging");
@@ -67,12 +69,36 @@ public class RepackageTask extends AbstractTask {
 
         Apktool tool = null;
         int minSdk = 19;
+        File apkToDecode = f;
+
+        // Config/density/ABI/language splits from an Android App Bundle install
+        // can't be decompiled on their own (no manifest/resources.arsc worth
+        // patching) and the OS refuses to install a base APK that still requires
+        // them (INSTALL_FAILED_MISSING_SPLIT) unless every split is pushed
+        // alongside it via install-multiple. Fold them into a single APK first,
+        // so decode/build/sign only ever have to deal with one file, installable
+        // on its own.
+        if (!appAlreadyRepackaged && !this.splitApks.isEmpty()) {
+            File mergedApk = new File(f.getParent(), name + "_merged.apk");
+            try {
+                info("Merging " + this.splitApks.size() + " split APK(s) into " + f.getName() + "...");
+                SplitApkMerger.merge(f, this.splitApks, mergedApk, this);
+                apkToDecode = mergedApk;
+                info("Merge finished: " + mergedApk.getPath());
+            } catch (Exception e) {
+                if (isDebugEnabled.get()) {
+                    Log.e("errorMergingSplits", "Unable to merge split apks: " + e);
+                }
+                log(Level.WARNING, "Unable to merge split apks", e);
+                return false;
+            }
+        }
 
         if (!appAlreadyRepackaged) {
             try {
-                info("Decompiling " + f.getName() + " with apktool into " + decompiledDir.getPath() + "...");
+                info("Decompiling " + apkToDecode.getName() + " with apktool into " + decompiledDir.getPath() + "...");
                 tool = new Apktool(this.ctx.getApplicationContext(), this);
-                ApkInfo info = tool.decodeResources(f, decompiledDir);
+                ApkInfo info = tool.decodeResources(apkToDecode, decompiledDir);
                 String minSdkVersion = info.getSdkInfo().getMinSdkVersion();
                 if (minSdkVersion != null) {
                     minSdk = Integer.parseInt(minSdkVersion);
@@ -101,6 +127,17 @@ public class RepackageTask extends AbstractTask {
                 log(Level.WARNING, "Unable to build the new apk", e);
                 tmpApk.delete();
                 return false;
+            }
+
+            try {
+                // Defends against "<meta-data> requires an android:value or
+                // android:resource attribute" install failures: apktool's decode/
+                // rebuild round-trip can drop a meta-data's value (e.g. one that
+                // pointed at a resource living in a split, for an app that wasn't
+                // itself split - see the merge step above for the split case).
+                SplitApkMerger.sanitizeManifest(tmpApk, this);
+            } catch (Exception e) {
+                log(Level.WARNING, "Unable to sanitize manifest, continuing with unsanitized build", e);
             }
 
             SignatureManager signManager;
@@ -137,45 +174,26 @@ public class RepackageTask extends AbstractTask {
                 log(Level.WARNING, "Unable to move the repacked apk to shared storage", e);
                 return false;
             }
-
-            // Split APKs (config/density/ABI/language) just need to match the base's new
-            // signature to install together - resign each directly, no decompile/rebuild.
-            // Best-effort: a failed split shouldn't block the (already valid) base APK.
-            for (File split : splitApks) {
-                File signedSplit = HideDroidStorage.getRepackedSplitFile(name, split.getName());
-                try {
-                    info("Resigning split " + split.getName() + "...");
-                    signManager.sign(split, signedSplit, minSdk);
-                    if (signManager.verify(signedSplit)) {
-                        info("Resigned split saved to " + signedSplit.getPath());
-                    } else {
-                        warning("Unable to verify signature of resigned split " + split.getName());
-                    }
-                } catch (Exception e) {
-                    if (isDebugEnabled.get()) {
-                        Log.e("errorSigningSplit", "Unable to resign split " + split.getName() + ": " + e);
-                    }
-                    log(Level.WARNING, "Unable to resign split " + split.getName(), e);
-                }
-            }
         }
 
-        @SuppressWarnings("deprecation")
-        PackageInfo pi = this.ctx.getPackageManager().getPackageArchiveInfo(f.getPath(), 0);
+        // packageName is always this.name - the caller already knows it (it's how
+        // the repacked apk gets named), no need to re-derive it by re-parsing the
+        // archive: getPackageArchiveInfo() returns null for a still split-required
+        // apk (see the merge step above) and would NPE here.
         ApplicationStatus applicationStatus = new ApplicationStatus(
-                pi.packageName, appAlreadyRepackaged, true,
+                name, appAlreadyRepackaged, true,
                 false, false, false
         );
         applicationStatus.storeStateApp();
         if (appAlreadyRepackaged) {
-            PackageNamePrivacyLevel packageNamePrivacyLevel = new PackageNamePrivacyLevel(pi.packageName, true, 1);
+            PackageNamePrivacyLevel packageNamePrivacyLevel = new PackageNamePrivacyLevel(name, true, 1);
             packageNamePrivacyLevel.storePrivacySettings();
             selectedPrivacyLevelsLock.lock();
             try {
-                if (selectedPrivacyLevels.get(pi.packageName) != null) {
-                    Objects.requireNonNull(selectedPrivacyLevels.get(pi.packageName)).set(1);
+                if (selectedPrivacyLevels.get(name) != null) {
+                    Objects.requireNonNull(selectedPrivacyLevels.get(name)).set(1);
                 } else {
-                    selectedPrivacyLevels.put(pi.packageName, new AtomicInteger(1));
+                    selectedPrivacyLevels.put(name, new AtomicInteger(1));
                 }
             } finally {
                 selectedPrivacyLevelsLock.unlock();

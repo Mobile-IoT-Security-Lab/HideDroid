@@ -70,19 +70,6 @@ object HideDroidStorage {
     }
 
     /**
-     * Canonical location for one of [packageName]'s resigned split APKs (config/density/
-     * ABI/language splits from an Android App Bundle install) - these are only re-signed
-     * with the same key as the base APK, never decompiled/rebuilt, and must keep their
-     * original split file name since the installer session matches splits by name.
-     */
-    @JvmStatic
-    fun getRepackedSplitFile(packageName: String, splitFileName: String): File {
-        val dir = File(getLegacyBaseDir(), "repack_app/${packageName}_splits")
-        dir.mkdirs()
-        return File(dir, splitFileName)
-    }
-
-    /**
      * Moves [source] (the freshly built+signed apk) into the canonical
      * repacked-apk location for [packageName], replacing any previous build.
      */

@@ -1,5 +1,6 @@
 package it.unige.hidedroid.activity
 
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
@@ -9,6 +10,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.result.ActivityResultLauncher
@@ -16,7 +18,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import apktool.module.SignatureManager
 import com.google.android.material.button.MaterialButton
+import es.dmoral.toasty.Toasty
 import it.unige.hidedroid.R
 import it.unige.hidedroid.utils.HideDroidStorage
 import it.unige.hidedroid.utils.InstallActions
@@ -35,6 +39,16 @@ private data class RepackedApkItem(val packageName: String, val icon: Drawable, 
  * bookkeeping - that flag's meaning differs between the "app already trusts
  * user certs, skip rebuild" fast path and the real repack-and-install path,
  * so it isn't a reliable signal for "has *this* file been installed".
+ *
+ * The package name and signing certificate are both read without going through
+ * PackageManager#getPackageArchiveInfo: that method runs the archive through the
+ * framework's full, split-aware PackageParser, which returns null for any base
+ * APK whose manifest requires config splits (isSplitRequired, common on apps
+ * built from an Android App Bundle) that aren't sitting next to it - exactly
+ * the case for a freshly repacked base APK before its splits are resigned. The
+ * package name instead comes from the (self-imposed) <package>.apk file naming
+ * convention, and the signing certificate from apksig's own verifier, which
+ * parses the zip/signature directly and doesn't care about splits at all.
  */
 class RepackedAppsActivity : AppCompatActivity() {
 
@@ -62,12 +76,28 @@ class RepackedAppsActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.recyclerViewRepackedApps)
         emptyView = findViewById(R.id.emptyRepackedApps)
         recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = RepackedAppsAdapter { item ->
-            pendingInstallPackageName = item.packageName
-            InstallActions.installSignedApk(this, item.packageName, item.apkFile.absolutePath,
-                    TrackingActions.DEFAULT_PRIVACY_LEVEL, uninstallLauncher, installLauncher)
-        }
+        adapter = RepackedAppsAdapter(
+                onInstallClick = { item ->
+                    pendingInstallPackageName = item.packageName
+                    InstallActions.installSignedApk(this, item.packageName, item.apkFile.absolutePath,
+                            TrackingActions.DEFAULT_PRIVACY_LEVEL, uninstallLauncher, installLauncher)
+                },
+                onDeleteClick = { item -> confirmDelete(item) }
+        )
         recyclerView.adapter = adapter
+    }
+
+    private fun confirmDelete(item: RepackedApkItem) {
+        AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
+                .setTitle(getString(R.string.action_delete_repacked_short))
+                .setMessage(getString(R.string.delete_repacked_confirm, item.packageName, item.apkFile.path))
+                .setPositiveButton("Yes") { _, _ ->
+                    item.apkFile.delete()
+                    Toasty.info(this, getString(R.string.delete_repacked_done)).show()
+                    reload()
+                }
+                .setNegativeButton("No", null)
+                .show()
     }
 
     override fun onResume() {
@@ -88,20 +118,21 @@ class RepackedAppsActivity : AppCompatActivity() {
     }
 
     private fun toItem(apkFile: File): RepackedApkItem? {
-        val signingFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            PackageManager.GET_SIGNING_CERTIFICATES
-        } else {
-            @Suppress("DEPRECATION")
-            PackageManager.GET_SIGNATURES
+        val packageName = apkFile.nameWithoutExtension
+        val archiveCert = try {
+            SignatureManager.getSignerCertificate(apkFile)
+        } catch (e: Exception) {
+            null
         }
-        @Suppress("DEPRECATION")
-        val packageInfo = packageManager.getPackageArchiveInfo(apkFile.path, signingFlags) ?: return null
-
-        if (isAlreadyInstalledWithMatchingSignature(packageInfo.packageName, signingCertificateOf(packageInfo))) {
+        if (isAlreadyInstalledWithMatchingSignature(packageName, archiveCert)) {
             return null
         }
-        val icon = packageInfo.applicationInfo.loadIcon(packageManager)
-        return RepackedApkItem(packageInfo.packageName, icon, apkFile)
+        val icon = try {
+            packageManager.getApplicationIcon(packageName)
+        } catch (e: PackageManager.NameNotFoundException) {
+            packageManager.defaultActivityIcon
+        }
+        return RepackedApkItem(packageName, icon, apkFile)
     }
 
     private fun isAlreadyInstalledWithMatchingSignature(packageName: String, archiveCert: ByteArray?): Boolean {
@@ -135,8 +166,10 @@ class RepackedAppsActivity : AppCompatActivity() {
     }
 }
 
-private class RepackedAppsAdapter(private val onInstallClick: (RepackedApkItem) -> Unit) :
-        RecyclerView.Adapter<RepackedAppsAdapter.ViewHolder>() {
+private class RepackedAppsAdapter(
+        private val onInstallClick: (RepackedApkItem) -> Unit,
+        private val onDeleteClick: (RepackedApkItem) -> Unit
+) : RecyclerView.Adapter<RepackedAppsAdapter.ViewHolder>() {
 
     private var items: List<RepackedApkItem> = emptyList()
 
@@ -158,6 +191,7 @@ private class RepackedAppsAdapter(private val onInstallClick: (RepackedApkItem) 
         holder.packageName.text = item.packageName
         holder.path.text = item.apkFile.path
         holder.installButton.setOnClickListener { onInstallClick(item) }
+        holder.deleteButton.setOnClickListener { onDeleteClick(item) }
     }
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -165,5 +199,6 @@ private class RepackedAppsAdapter(private val onInstallClick: (RepackedApkItem) 
         val packageName: TextView = itemView.findViewById(R.id.packageNameRepackedApp)
         val path: TextView = itemView.findViewById(R.id.pathRepackedApp)
         val installButton: MaterialButton = itemView.findViewById(R.id.buttonInstallRepackedApp)
+        val deleteButton: ImageButton = itemView.findViewById(R.id.buttonDeleteRepackedApp)
     }
 }
