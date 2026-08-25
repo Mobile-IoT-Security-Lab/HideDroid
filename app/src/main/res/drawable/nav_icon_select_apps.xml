@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Framework ic_menu_agenda is baked-in white (meant for a dark ActionBar); this
+     app's toolbar is light, so bake a black tint into the drawable itself. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@android:drawable/ic_menu_agenda"
+    android:tint="@android:color/black" />

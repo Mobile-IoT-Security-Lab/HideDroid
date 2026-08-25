@@ -20,6 +20,7 @@ import it.unige.hidedroid.interceptor.UtilsHttpInterceptor.isAnalyticsRequest
 import it.unige.hidedroid.log.LoggerHideDroid
 import it.unige.hidedroid.realmdatahelper.TrackersMappingDomainName
 import it.unige.hidedroid.realmdatahelper.UtilitiesStoreDataOnRealmDb
+import it.unige.hidedroid.utils.DomainAnonymizationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import java.net.URLDecoder
@@ -85,7 +86,7 @@ class HttpInterceptor(var packageManager: PackageManager,
             // get package name
             val packageNameApp = packageManager.getPackagesForUid(chain.request().uid())!![0]
             // if host belong to an analytics domain known
-            var isTracked = false
+            var isTracked: Boolean
             var isPrivate = false
 
             val realm = Realm.getInstance(realmConfigPrivateTracker)
@@ -96,9 +97,12 @@ class HttpInterceptor(var packageManager: PackageManager,
                 }
             }
 
-            if (this.trackersMappingDomainName.isUrlPresent(chain.request().host())) {
-                isTracked = true
-            }
+            // An explicit per-domain record (default/manual/automatic) overrides the
+            // bundled regex list for that exact host; no record falls back to it unchanged.
+            val requestDomainOverride = DomainAnonymizationHelper.getByHost(chain.request().host())
+            isTracked = requestDomainOverride?.enabled
+                    ?: this.trackersMappingDomainName.isUrlPresent(chain.request().host())
+
             if (this.listAppToMonitoring.contains(packageNameApp)) {
                 if (index == 0) {
                     // if is the first that is complete of all data
@@ -106,6 +110,10 @@ class HttpInterceptor(var packageManager: PackageManager,
                     if (offsetBody < buffer.array().size) {
                         val byteBuffer = Arrays.copyOfRange(buffer.array(), offsetBody, buffer.array().size)
                         val host = chain.request().host()
+                        // "Automatic" domain discovery: every host seen for a monitored
+                        // app gets listed (anonymization off by default) for the user to
+                        // toggle later - independent of whether it ends up tracked here.
+                        DomainAnonymizationHelper.recordAutomaticIfAbsent(host)
                         val requestHeaders = chain.request().requestHeaders()
                         val requestHeadersString = fromMapToString(requestHeaders)
                         var bodyString = ""
@@ -346,11 +354,10 @@ class HttpInterceptor(var packageManager: PackageManager,
 
     override fun intercept(chain: HttpResponseChain, buffer: ByteBuffer, index: Int) {
         chain.process(buffer)
-        var isTracked = false
         var isPrivate = false
-        if (this.trackersMappingDomainName.isUrlPresent(chain.response().host())) {
-            isTracked = true
-        }
+        val responseDomainOverride = DomainAnonymizationHelper.getByHost(chain.response().host())
+        var isTracked = responseDomainOverride?.enabled
+                ?: this.trackersMappingDomainName.isUrlPresent(chain.response().host())
         val realm = Realm.getInstance(realmConfigPrivateTracker)
         realm.use { realm ->
             realm.executeTransaction { realm ->

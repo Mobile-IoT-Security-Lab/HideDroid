@@ -4,39 +4,27 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/debug_button"
-        android:icon="@drawable/ic_baseline_bug_report_disabled_27"
-        android:title="Debug Mode"
+        android:id="@+id/action_select_apps"
+        android:icon="@drawable/nav_icon_select_apps"
+        android:title="@string/action_select_apps"
         app:showAsAction="always" />
 
     <item
-        android:id="@+id/extractDebugLogs"
-        android:icon="@drawable/baseline_save_24"
-        android:title="Extract Debug Logs"
-        app:showAsAction="never" />
-
-    <item
-        android:id="@+id/extractDB"
-        android:icon="@drawable/baseline_save_24"
-        android:title="Extract DB"
-        app:showAsAction="never" />
-
-    <item
-        android:id="@+id/extractDGH"
-        android:icon="@drawable/baseline_save_24"
-        android:title="Extract DGH"
-        app:showAsAction="never" />
-
-    <item
-        android:id="@+id/clean_dir"
-        android:icon="@drawable/baseline_delete_24"
-        android:title="Clean directory / Delete system CA"
-        app:showAsAction="always" />
-
-    <item
-        android:id="@+id/installCACertificate"
+        android:id="@+id/action_show_repacked_apps"
         android:icon="@drawable/baseline_archive_24"
-        android:title="Install Certificate"
+        android:title="@string/action_show_repacked_apps"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_domain_settings"
+        android:icon="@drawable/nav_icon_domain_settings"
+        android:title="@string/action_domain_settings"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_settings"
+        android:icon="@drawable/baseline_settings_24"
+        android:title="@string/action_settings"
         app:showAsAction="always" />
 
 </menu>

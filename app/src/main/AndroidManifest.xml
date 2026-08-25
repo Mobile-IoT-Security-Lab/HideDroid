@@ -61,6 +61,20 @@
             android:exported="false"
             />
 
+        <activity android:name=".activity.DomainSettingsActivity"
+            android:label="@string/domain_settings_title"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".activity.MainActivity"
+            android:exported="false"
+            />
+
+        <activity android:name=".activity.SettingsActivity"
+            android:label="@string/settings_title"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".activity.MainActivity"
+            android:exported="false"
+            />
+
         <activity android:name=".activity.SplashActivity"
             android:exported="true"
             >

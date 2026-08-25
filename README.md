@@ -1,5 +1,5 @@
 <p align="center">
-<img width="200" height="200"  src="app/src/main/res/mipmap-xxxhdpi/ic_incognito_android_hat_circle.png">
+<img   src="resources/hidedroid_github.png">
 </p>
 
 # HideDroid 
@@ -22,7 +22,7 @@ Finally, the anonymized data are sent to the expected recipients by mimicking th
 ## ❱ Compatibility with Android versions
 <div align="center">
       
-| **5.x** or lower   |**6.0**             |**7.x**             | **8.x**            |**9.0**             |**10.0**            |**11.0**            | **12.0**           |
+| **5.x** or lower   |**6.0**             |**7.x**             | **8.x**            |**9.0**             |**10.0**            |**11.0**            | **12.0+**           |
 |:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|
 | :trollface:        |:heavy_check_mark:  |:heavy_check_mark:  |:heavy_check_mark:  |:heavy_check_mark:  |:heavy_check_mark:  |:warning:           | :warning:          |
 
@@ -57,6 +57,12 @@ Alternatively, when HideDroid asks to modify the app, you can choose **"Try with
 
 In this specific case, all data read by **HideDroid** never leave the device or the app itself: traffic interception, data extraction, and anonymization are performed entirely on-device.
 
+### ⚠ Limitation: apps with SSL/TLS certificate pinning
+
+Repackaging only makes the target app trust the HideDroid CA at the **network security config** level (i.e. it accepts user-installed certificates). If the app implements **certificate/public-key pinning** in its own code (e.g. `OkHttp` `CertificatePinner`, `TrustManager`/`HostnameVerifier` overrides, Network Security Config `<pin-set>`, or native pinning in Flutter/Xamarin apps), it independently verifies the server certificate against a hardcoded pin and will reject the HideDroid CA regardless of the trust-store change, so its TLS traffic **cannot be intercepted**.
+
+HideDroid does not detect or bypass pinning: repackaging will still "succeed" (the app installs and runs), but pinned connections will simply fail or refuse to use the proxy, and no data will be read for that app. Defeating pinning requires app-specific reverse engineering (e.g. patching the pinning check with a tool like Frida/objection) that is outside HideDroid's scope. Cleartext (non-HTTPS) traffic from the same app is unaffected and is still intercepted normally.
+
 ## ❱ Publication
 
 More details about **HideDroid** can be found in the paper [You can’t always get what you want: towards user-controlled privacy on Android](https://ieeexplore.ieee.org/abstract/document/9694493):
@@ -73,55 +79,23 @@ More details about **HideDroid** can be found in the paper [You can’t always g
 
 Accepted on [IEEE TDSC journal](https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=8858).
 
-## ❱ App Screenshots 
 
-![](img/app_screenshot.png)
 
 ## ❱ Contributing
 
-Questions, bug reports and pull requests are welcome on GitHub at [https://github.com/Mobile-IoT-Security-Lab/HideDroid](https://github.com/Mobile-IoT-Security-Lab/HideDroid).
+Questions, bug reports and pull requests are welcome on GitHub at [https://github.com/0xdad0/HideDroid](https://github.com/0xdad0/HideDroid).
 
 
-## ❱ License
-
-This tool is available under a dual license: a commercial one required for closed source projects or commercial projects, and an AGPL license for open-source projects.
-
-Depending on your needs, you must choose one of them and follow its policies. A detail of the policies and agreements for each license type is available in the [LICENSE.COMMERCIAL](LICENSE.COMMERCIAL) and [LICENSE](LICENSE) files.
-
-## ❱ Credits
-
-This software was developed for research purposes at the Computer Security Lab ([CSecLab](https://csec.it/)), hosted at DIBRIS, University of Genova.
-
-
-<div align="center"
-
-[![Unige](https://intranet.dibris.unige.it/img/logo_unige.gif)](https://unige.it/en/)
-[![Dibris](https://intranet.dibris.unige.it/img/logo_dibris.gif)](https://www.dibris.unige.it/en/)
-
-</div>
-
-## ❱ Team
-
-* [Davide Caputo](https://csec.it/people/davide_caputo/) - Ph.D Student & Developer
-* [Francesco Pagano](https://github.com/X3no21) - Post-Graduate Research Fellow & Developer
-* [Giovanni Bottino](https://github.com/GiovanniBottino) - Developer
-* [Gabriel Claudiu Georgiu](https://github.com/ClaudiuGeorgiu) - Developer
-* [Luca Verderame](https://csec.it/people/luca_verderame/) - Postdoctoral Researcher
-* [Alessio Merlo](https://csec.it/people/alessio_merlo/) - Faculty Member
-
-## ❱ Support Us
-
-<div align="center">
-      
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/dado1513)
-[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate?hosted_button_id=EQHVHAG9SS8DW)
-
-</div>
 
 ## ❱ Star History
 
-<div align="center">
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Mobile-IoT-Security-Lab/HideDroid&type=Date)](https://star-history.com/#Mobile-IoT-Security-Lab/HideDroid&Date)
+<a href="https://www.star-history.com/?repos=0xdad0%2FHideDroid&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=0xdad0/HideDroid&type=date&theme=dark&legend=top-left&sealed_token=2i7ItbuteVPvwZhIXGOdTs_yHLToCUaa51Xq9dPYERzHtQ_mihYtQ4LJ-VJ74ZLnE9y3lKHG4og9iKvmYe08bB-duG8joittMyqDzhGpyfHzADLMHrwwPQ" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=0xdad0/HideDroid&type=date&legend=top-left&sealed_token=2i7ItbuteVPvwZhIXGOdTs_yHLToCUaa51Xq9dPYERzHtQ_mihYtQ4LJ-VJ74ZLnE9y3lKHG4og9iKvmYe08bB-duG8joittMyqDzhGpyfHzADLMHrwwPQ" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=0xdad0/HideDroid&type=date&legend=top-left&sealed_token=2i7ItbuteVPvwZhIXGOdTs_yHLToCUaa51Xq9dPYERzHtQ_mihYtQ4LJ-VJ74ZLnE9y3lKHG4og9iKvmYe08bB-duG8joittMyqDzhGpyfHzADLMHrwwPQ" />
+ </picture>
+</a>
 
 </div>
