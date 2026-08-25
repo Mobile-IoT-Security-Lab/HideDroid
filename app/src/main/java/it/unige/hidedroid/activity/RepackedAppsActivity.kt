@@ -106,8 +106,8 @@ class RepackedAppsActivity : AppCompatActivity() {
     }
 
     private fun reload() {
-        val repackDir = File(HideDroidStorage.getLegacyBaseDir(), "repack_app")
-        val items = repackDir.listFiles { f -> f.isFile && f.name.endsWith(".apk") }
+        val repackDir = HideDroidStorage.getRepackWorkDir()
+        val items = repackDir.listFiles { f -> f.isFile && HideDroidStorage.isRepackedApkFileName(f.name) }
                 ?.mapNotNull { apkFile -> toItem(apkFile) }
                 ?.sortedBy { it.packageName }
                 ?: emptyList()

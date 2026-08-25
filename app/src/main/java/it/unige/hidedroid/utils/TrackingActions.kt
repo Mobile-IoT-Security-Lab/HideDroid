@@ -92,8 +92,11 @@ object TrackingActions {
      *
      * @param splitApkPaths any split APKs (config/density/ABI/language) belonging
      *                      to the same app - resigned alongside the base, never decompiled.
+     * @param removeCheckLicensePermission strip com.android.vending.CHECK_LICENSE
+     *                      from the manifest if present.
      */
-    fun startRepack(activity: Activity, packageName: String, apkPath: String, splitApkPaths: List<String> = emptyList(), onFinished: Runnable? = null) {
+    fun startRepack(activity: Activity, packageName: String, apkPath: String, splitApkPaths: List<String> = emptyList(),
+                     removeCheckLicensePermission: Boolean = false, onFinished: Runnable? = null) {
         val app = activity.application as HideDroidApplication
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -114,7 +117,7 @@ object TrackingActions {
         NotificationManagerCompat.from(activity).notify(packageName.hashCode(), notification)
 
         val wrapper = AbstractTaskWrapper(app.selectedPrivacyLevels, app.selectedPrivacyLevelsLock, arrayOf(File(apkPath)), app.isDebugEnabled)
-        val task = RepackageTask(activity, packageName, splitApkPaths.map { File(it) })
+        val task = RepackageTask(activity, packageName, splitApkPaths.map { File(it) }, removeCheckLicensePermission)
         if (onFinished != null) {
             task.setOnFinishedListener(onFinished)
         }

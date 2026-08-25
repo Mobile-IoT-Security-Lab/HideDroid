@@ -185,6 +185,19 @@
                 app:layout_constraintStart_toEndOf="@+id/labelPath"
                 app:layout_constraintTop_toTopOf="@+id/labelPath" />
 
+            <CheckBox
+                android:id="@+id/checkboxRemoveCheckLicense"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:fontFamily="@font/roboto"
+                android:text="@string/checkbox_remove_check_license"
+                android:textColor="@android:color/black"
+                android:textSize="12sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/privacySeekBar" />
+
             <LinearLayout
                 android:id="@+id/repackModeButtons"
                 android:layout_width="300dp"
@@ -193,7 +206,7 @@
                 android:orientation="horizontal"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/privacySeekBar">
+                app:layout_constraintTop_toBottomOf="@+id/checkboxRemoveCheckLicense">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/buttonNoRepackAppView"

@@ -16,7 +16,6 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
-import es.dmoral.toasty.Toasty
 import it.unige.hidedroid.R
 import it.unige.hidedroid.activity.SaveSettingApkActivity
 import it.unige.hidedroid.activity.SelectAppActivity
@@ -25,7 +24,6 @@ import it.unige.hidedroid.models.AppItemRepacking
 import it.unige.hidedroid.models.ListAppsItemRepacking
 import it.unige.hidedroid.myinterface.ItemClickListener
 import it.unige.hidedroid.utils.ApkExtraction
-import it.unige.hidedroid.utils.FolderPicker
 import it.unige.hidedroid.utils.HideDroidStorage
 import it.unige.hidedroid.utils.TrackingActions
 import it.unige.hidedroid.utils.Utilities
@@ -135,24 +133,20 @@ class AppAdapterRepacking(
             }
 
             holder.buttonTrackRepack.setOnClickListener {
-                Toasty.info(mContext, mContext.getString(R.string.output_folder_setup_message)).show()
-                FolderPicker.choose(mActivity, HideDroidStorage.prepareBaseDir(mContext)) { chosenDir ->
-                    HideDroidStorage.setOutputFolder(mContext, chosenDir)
-
-                    try {
-                        val apks = ApkExtraction.extractInstalled(mContext, item.packageName, chosenDir)
-                        val signedApk = HideDroidStorage.getRepackedApkFile(item.packageName)
-                        TrackingActions.startRepack(mActivity, item.packageName, apks.base.absolutePath,
-                                apks.splits.map { it.absolutePath }) {
-                            refreshAppList()
-                            (mActivity as? SelectAppActivity)?.promptInstallRepacked(item.packageName, signedApk.absolutePath)
-                        }
-                    } catch (e: IOException) {
-                        if (e.toString().contains("ENOSPC")) {
-                            Utilities.ShowAlertDialog(mContext, "Errors", "No space left")
-                        } else {
-                            throw AssertionError("FAIL: extracting APKs for ${item.packageName}", e)
-                        }
+                try {
+                    val workDir = HideDroidStorage.getRepackWorkDir()
+                    val apks = ApkExtraction.extractInstalled(mContext, item.packageName, workDir)
+                    val signedApk = HideDroidStorage.getRepackedApkFile(item.packageName)
+                    TrackingActions.startRepack(mActivity, item.packageName, apks.base.absolutePath,
+                            apks.splits.map { it.absolutePath }) {
+                        refreshAppList()
+                        (mActivity as? SelectAppActivity)?.promptInstallRepacked(item.packageName, signedApk.absolutePath)
+                    }
+                } catch (e: IOException) {
+                    if (e.toString().contains("ENOSPC")) {
+                        Utilities.ShowAlertDialog(mContext, "Errors", "No space left")
+                    } else {
+                        throw AssertionError("FAIL: extracting APKs for ${item.packageName}", e)
                     }
                 }
             }
@@ -178,9 +172,9 @@ class AppAdapterRepacking(
                     val packageName: String = appInfo.packageName
 
                     if (listAppObjectFiltered.appRepackings[position].isInstalled) {
-                        val baseDir = HideDroidStorage.prepareBaseDir(mContext)
+                        val workDir = HideDroidStorage.getRepackWorkDir()
                         try {
-                            val apks = ApkExtraction.extractInstalled(mContext, packageName, baseDir)
+                            val apks = ApkExtraction.extractInstalled(mContext, packageName, workDir)
                             val saveApkResultIntent = Intent(mContext, SaveSettingApkActivity::class.java)
                             val bundle = Bundle()
                             val msg = arrayOf(apks.base.absolutePath, packageName, "true") + apks.splits.map { it.absolutePath }

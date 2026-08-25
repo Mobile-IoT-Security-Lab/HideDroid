@@ -64,6 +64,49 @@ public class SplitApkMerger {
         apkModule.close();
     }
 
+    /**
+     * Removes a single &lt;uses-permission android:name="permissionName"/&gt; from
+     * the manifest, if present - e.g. com.android.vending.CHECK_LICENSE, so the
+     * repacked app stops asking Google Play whether it was installed from there.
+     * No-op (returns false) if the app never declared it.
+     */
+    public static boolean removePermissionIfPresent(File apk, String permissionName, Logger logger) throws IOException {
+        ApkModule apkModule = ApkModule.loadApkFile(apk);
+        boolean removed = doRemovePermission(apkModule, permissionName, bridge(logger));
+        if (removed) {
+            apkModule.refreshTable();
+            apkModule.refreshManifest();
+            apkModule.writeApk(apk);
+        }
+        apkModule.close();
+        return removed;
+    }
+
+    private static boolean doRemovePermission(ApkModule apkModule, String permissionName, APKLogger logger) {
+        if (!apkModule.hasAndroidManifest()) {
+            return false;
+        }
+        AndroidManifestBlock manifest = apkModule.getAndroidManifest();
+        ResXmlElement manifestElement = manifest.getManifestElement();
+        if (manifestElement == null) {
+            return false;
+        }
+        List<ResXmlElement> toRemove = CollectionUtil.toList(manifestElement.getElements(element ->
+                element.equalsName("uses-permission")
+                        && permissionName.equals(AndroidManifestBlock.getAndroidNameValue(element))));
+        if (toRemove.isEmpty()) {
+            return false;
+        }
+        for (ResXmlElement element : toRemove) {
+            if (logger != null) {
+                logger.logMessage("Removed <uses-permission>: " + permissionName);
+            }
+            manifestElement.remove(element);
+        }
+        manifest.refresh();
+        return true;
+    }
+
     private static void doSanitizeManifest(ApkModule apkModule, APKLogger logger) {
         if (!apkModule.hasAndroidManifest()) {
             return;

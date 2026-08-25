@@ -22,7 +22,6 @@ import it.unige.hidedroid.HideDroidApplication
 import it.unige.hidedroid.R
 import it.unige.hidedroid.log.LoggerHideDroid
 import it.unige.hidedroid.realmdatahelper.UtilitiesStoreDataOnRealmDb
-import it.unige.hidedroid.utils.FolderPicker
 import it.unige.hidedroid.utils.HideDroidStorage
 import it.unige.hidedroid.utils.InstallActions
 import it.unige.hidedroid.utils.TrackingActions
@@ -54,6 +53,7 @@ class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListe
     private lateinit var textViewTrackingStatus: android.widget.TextView
     private lateinit var buttonRepackAppView: MaterialButton
     private lateinit var buttonNoRepackAppView: MaterialButton
+    private lateinit var checkboxRemoveCheckLicense: android.widget.CheckBox
 
     companion object {
         private val TAG = SaveSettingApkActivity::class.java.name
@@ -95,6 +95,7 @@ class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListe
         textViewTrackingStatus = findViewById(R.id.textViewTrackingStatus)
         buttonRepackAppView = findViewById(R.id.buttonRepackAppView)
         buttonNoRepackAppView = findViewById(R.id.buttonNoRepackAppView)
+        checkboxRemoveCheckLicense = findViewById(R.id.checkboxRemoveCheckLicense)
 
         // list of apps
         // setContentView(R.layout.activity_select_apps)
@@ -435,16 +436,12 @@ class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListe
         alertDialog.show()
     }
 
-    /** Setup step: pick where decompile/build artifacts land before the repack actually starts. */
+    /** Relocates the extracted apk(s) into the fixed repack work dir, then starts the repack. */
     private fun setUpOutputFolderThenRepack() {
-        Toasty.info(this, getString(R.string.output_folder_setup_message)).show()
-        FolderPicker.choose(this, HideDroidStorage.prepareBaseDir(this)) { chosenDir ->
-            HideDroidStorage.setOutputFolder(this, chosenDir)
-
-            apkPath = relocate(apkPath!!, chosenDir)
-            splitApkPaths = splitApkPaths.map { relocate(it, chosenDir) }
-            performRepacking(apkPath!!, splitApkPaths)
-        }
+        val workDir = HideDroidStorage.getRepackWorkDir()
+        apkPath = relocate(apkPath!!, workDir)
+        splitApkPaths = splitApkPaths.map { relocate(it, workDir) }
+        performRepacking(apkPath!!, splitApkPaths)
     }
 
     private fun relocate(path: String, chosenDir: File): String {
@@ -469,7 +466,8 @@ class SaveSettingApkActivity : AppCompatActivity(), SeekBar.OnSeekBarChangeListe
     }
 
     private fun performRepacking(apkPath: String, splitApkPaths: List<String> = emptyList()) {
-        TrackingActions.startRepack(this, appPackageNameToModify!!, apkPath, splitApkPaths)
+        TrackingActions.startRepack(this, appPackageNameToModify!!, apkPath, splitApkPaths,
+                checkboxRemoveCheckLicense.isChecked)
     }
 
     private fun installApk() {

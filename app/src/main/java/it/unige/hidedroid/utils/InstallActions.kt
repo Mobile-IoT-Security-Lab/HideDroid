@@ -85,15 +85,26 @@ object InstallActions {
 
     /** Forward the hosting Activity's installLauncher result here. */
     fun onInstallResult(activity: Activity, resultCode: Int, packageName: String, privacyLevel: Int) {
-        if (resultCode == Activity.RESULT_OK) {
-            storeStatus(packageName, ApplicationStatus(packageName = packageName, installed = true, isRepackaged = true))
-            rememberSelectedPrivacyLevel(activity, packageName, privacyLevel)
-            PackageNamePrivacyLevel(packageName = packageName, isInstalled = true, privacyLevel = privacyLevel)
-                    .storePrivacySettings()
-            Toasty.success(activity, "Privacy Settings Stored and App Installed").show()
-        } else if (resultCode == Activity.RESULT_FIRST_USER) {
-            storeStatus(packageName, ApplicationStatus(packageName = packageName, installed = false, isRepackaged = true))
-            Toasty.error(activity, "App Not Installed").show()
+        when (resultCode) {
+            Activity.RESULT_OK -> {
+                storeStatus(packageName, ApplicationStatus(packageName = packageName, installed = true, isRepackaged = true))
+                rememberSelectedPrivacyLevel(activity, packageName, privacyLevel)
+                PackageNamePrivacyLevel(packageName = packageName, isInstalled = true, privacyLevel = privacyLevel)
+                        .storePrivacySettings()
+                Toasty.success(activity, "Privacy Settings Stored and App Installed").show()
+            }
+            Activity.RESULT_FIRST_USER -> {
+                storeStatus(packageName, ApplicationStatus(packageName = packageName, installed = false, isRepackaged = true))
+                Toasty.error(activity, "App Not Installed").show()
+            }
+            else -> {
+                // e.g. RESULT_CANCELED (user tapped "Cancel" on the install prompt).
+                // Clear the in-progress flag but keep isRepackaged=true - the built
+                // apk is still sitting in repack_app, installable again later; without
+                // this the status would get stuck at isInInstalling=true/isRepackaged=false.
+                storeStatus(packageName, ApplicationStatus(packageName = packageName, installed = false, isRepackaged = true))
+                Toasty.warning(activity, "Installation cancelled").show()
+            }
         }
     }
 

@@ -289,26 +289,35 @@ class SelectAppActivity() : AppCompatActivity(), PermissionListener {
             // location that isn't currently installed - shown regardless of tracked state
             // so the user can find and install any of them manually (packages already
             // installed are covered by the loop above instead).
-            val repackedApkFiles = File(HideDroidStorage.getLegacyBaseDir(), "repack_app")
-                    .listFiles { f -> f.isFile && f.name.endsWith(".apk") }
+            val repackedApkFiles = HideDroidStorage.getRepackWorkDir()
+                    .listFiles { f -> f.isFile && HideDroidStorage.isRepackedApkFileName(f.name) }
 
             if (repackedApkFiles != null) {
                 for (fileApp in repackedApkFiles) {
+                    // packageName comes from the <package>.apk file naming convention, not
+                    // from parsing the archive: getPackageArchiveInfo() returns null for a
+                    // base APK whose manifest still requires config splits (isSplitRequired,
+                    // common on apps built from an Android App Bundle) that aren't sitting
+                    // next to it here - the same failure mode fixed in RepackedAppsActivity.
+                    val packageNameFromFile = fileApp.nameWithoutExtension
+                    if (installedPackageNames.contains(packageNameFromFile)) continue
+
                     @Suppress("DEPRECATION")
                     val packageInfo = packageManager.getPackageArchiveInfo(fileApp.path, 0)
-                    if (packageInfo != null && !installedPackageNames.contains(packageInfo.packageName)) {
-                        val app = AppItemRepacking(
-                                packageInfo.packageName,
-                                packageInfo.applicationInfo.loadIcon(packageManager),
-                                packageInfo.applicationInfo.name,
-                                packageInfo.applicationInfo,
-                                "Not Installed",
-                                isInstalled = false,
-                                isAlreadyTracked = appListTracked.contains(packageInfo.packageName),
-                                signedApkPath = fileApp.absolutePath
-                        )
-                        result.add(app)
-                    }
+                    val appInfo = packageInfo?.applicationInfo ?: ApplicationInfo().apply { packageName = packageNameFromFile }
+                    val icon = packageInfo?.applicationInfo?.loadIcon(packageManager) ?: packageManager.defaultActivityIcon
+
+                    val app = AppItemRepacking(
+                            packageNameFromFile,
+                            icon,
+                            appInfo.name,
+                            appInfo,
+                            "Not Installed",
+                            isInstalled = false,
+                            isAlreadyTracked = appListTracked.contains(packageNameFromFile),
+                            signedApkPath = fileApp.absolutePath
+                    )
+                    result.add(app)
                 }
             }
 

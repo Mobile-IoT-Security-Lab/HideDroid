@@ -18,6 +18,7 @@
     <string name="ask_app_modification">The app may need to be modified to allow TLS traffic anonymization. Alternatively, you can try intercepting its traffic without modifying it: cleartext traffic is always intercepted, while TLS traffic is intercepted only if the app already trusts user certificates.</string>
     <string name="action_try_without_modification">Try without modification</string>
     <string name="intercept_without_modification_result">App tracked without modification. TLS traffic will be intercepted only if the app already trusts user certificates.</string>
+    <string name="checkbox_remove_check_license">Remove Google Play license check (CHECK_LICENSE) if present</string>
 
     <string name="action_track_repack_short">Repack</string>
     <string name="action_install_repacked_short">Install</string>
@@ -60,11 +61,6 @@
     <string name="delete_domain_confirm">Remove %1$s from the domain list? This only removes your manually added entry.</string>
     <string name="delete_domain_done">Deleted</string>
 
-    <string name="folder_picker_title">Choose output folder</string>
-    <string name="folder_picker_use_this">✓ Use this folder (%1$s)</string>
-    <string name="folder_picker_up">.. (up)</string>
-    <string name="folder_picker_cancel">Cancel</string>
-    <string name="output_folder_setup_message">Choose where decompiled/rebuilt APK files are written before repackaging starts.</string>
     <string name="repack_finished_title">Repackaging finished</string>
     <string name="repacked_apps_title">Repacked apps</string>
     <string name="repacked_apps_empty">No repacked APKs waiting to be installed.</string>
