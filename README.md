@@ -28,7 +28,7 @@ Finally, the anonymized data are sent to the expected recipients by mimicking th
 
 </div>
 
- :warning:  HideDroid app has been compatible with all Android versions (also the newest ones 11 and 12) since the release [1.2](https://github.com/Mobile-IoT-Security-Lab/HideDroid/releases/tag/1.2).
+ :warning:  HideDroid app has been compatible with all Android versions since the release [1.2](https://github.com/Mobile-IoT-Security-Lab/HideDroid/releases/tag/1.2).
 
 ### CA certificate installation
 
