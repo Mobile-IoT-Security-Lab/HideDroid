@@ -2,6 +2,7 @@ package com.dave.realmdatahelper.hidedroid
 
 import android.util.Log
 import io.realm.Realm
+import io.realm.RealmList
 import io.realm.RealmObject
 import io.realm.annotations.PrimaryKey
 import io.realm.annotations.RealmField
@@ -13,18 +14,26 @@ open class AnonymizedDomain : RealmObject {
     var host: String? = null
     @RealmField(name = "enabled")
     var enabled: Boolean = false
+    @RealmField(name = "blocked")
+    var blocked: Boolean = false
     @RealmField(name = "added_by")
     var addedBy: String? = null
+    @RealmField(name = "app_packages")
+    var appPackages: RealmList<String> = RealmList()
 
     constructor() : super()
-    constructor(host: String = "", enabled: Boolean = false, addedBy: String = "") {
+    constructor(host: String = "", enabled: Boolean = false, blocked: Boolean = false, addedBy: String = "", appPackages: RealmList<String>? = null) {
         this.host = host
         this.enabled = enabled
+        this.blocked = blocked
         this.addedBy = addedBy
+        if (appPackages != null) {
+            this.appPackages = appPackages
+        }
     }
 
     override fun toString(): String {
-        return "AnonymizedDomain = (host=${this.host}, enabled=${this.enabled}, addedBy=${this.addedBy})"
+        return "AnonymizedDomain = (host=${this.host}, enabled=${this.enabled}, blocked=${this.blocked}, addedBy=${this.addedBy}, appPackages=${this.appPackages})"
     }
 
     fun storeDomain() {

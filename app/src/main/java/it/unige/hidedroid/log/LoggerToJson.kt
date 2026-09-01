@@ -11,7 +11,9 @@ data class LoggerToJson (
     @SerializedName("private_hosts") var private_hosts: List<String>,
     @SerializedName("errors") var errors: List<Error>,
     @SerializedName("number_accepted_request") var number_accepted_request: Int,
-    @SerializedName("number_refused_request") var number_refused_request: Int
+    @SerializedName("number_refused_request") var number_refused_request: Int,
+    @SerializedName("blocked_request_count") var blocked_request_count: Int,
+    @SerializedName("blocked_hosts") var blocked_hosts: List<String>
 )
 
 // Errori in fasi di: repackaging, installazione, decodifica

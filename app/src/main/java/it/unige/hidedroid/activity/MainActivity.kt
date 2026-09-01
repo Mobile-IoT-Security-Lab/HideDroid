@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.transition.Explode
+import com.dave.anonymization_data.anonymizationthreads.DataAnonymizer
 import android.view.Menu
 import android.view.MenuItem
 import android.view.Window
@@ -221,18 +222,30 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
             return
         }
 
-        if (this.trackersMappingDomainName != null && this.appListTracked != null) {
-            var config = NetBareConfig.defaultHttpConfigWithConnectivityManager(
-                    HideDroidApplication.getInstance().getJSK(),
-                    interceptorFactories(),
-                    HideDroidApplication.getInstance().getSystemService(Context.CONNECTIVITY_SERVICE)
-                            as ConnectivityManager?,
-                    this.appListTracked
-            )
-
-            myViewModel!!.isClicked = true
-            mNetBare.start(config)
+        if (!this::trackersMappingDomainName.isInitialized || this.appListTracked == null) {
+            // Trackers mapping / app list are loaded in onResume on a background
+            // dispatcher; starting the VPN before that would crash on the
+            // lateinit property or monitor zero apps.
+            Toasty.warning(application, getString(R.string.vpn_not_ready)).show()
+            return
         }
+
+        val dataAnonymizer = (application as HideDroidApplication).serviceAnonymization?.dataAnonymizer
+        if (dataAnonymizer == null) {
+            Toasty.warning(application, getString(R.string.vpn_not_ready)).show()
+            return
+        }
+
+        var config = NetBareConfig.defaultHttpConfigWithConnectivityManager(
+                HideDroidApplication.getInstance().getJSK(),
+                interceptorFactories(dataAnonymizer),
+                HideDroidApplication.getInstance().getSystemService(Context.CONNECTIVITY_SERVICE)
+                        as ConnectivityManager?,
+                this.appListTracked
+        )
+
+        myViewModel!!.isClicked = true
+        mNetBare.start(config)
     }
 
     override fun onResume() {
@@ -298,6 +311,10 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
                 startActivity(Intent(this, DomainSettingsActivity::class.java))
             }
 
+            R.id.action_live_traffic -> {
+                startActivity(Intent(this, TrafficActivity::class.java))
+            }
+
             R.id.action_settings -> {
                 startActivity(Intent(this, SettingsActivity::class.java))
             }
@@ -305,13 +322,14 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
         return super.onOptionsItemSelected(item)
     }
 
-    private fun interceptorFactories(): List<HttpInterceptorFactory> {
+    private fun interceptorFactories(dataAnonymizer: DataAnonymizer): List<HttpInterceptorFactory> {
         val jsonString = this.assets.open("private_params.json").bufferedReader().use { it.readText() }
         val objectList = Gson().fromJson(jsonString, Array<String>::class.java).asList()
         val interceptorHttp = HttpInterceptor.createFactory(packageManager, this.trackersMappingDomainName, this.appListTracked!!,
                 (application as HideDroidApplication).realmConfigPrivateTracker,
                 (application as HideDroidApplication).realmConfigLog, objectList, isDebugEnabled,
-                (this.application as HideDroidApplication).serviceAnonymization!!.dataAnonymizer)
+                (application as HideDroidApplication).isDomainBlockingEnabled,
+                dataAnonymizer)
         return listOf(interceptorHttp)
     }
 
@@ -319,8 +337,6 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
         // This dispatcher is optimized to perform disk or network I/O outside of the main thread
         // this function update app installed or removed by the user to update the db
         withContext(Dispatchers.IO) {
-            appListTracked = mutableListOf<String>()
-            // LoggerHideDroid.d(TAG, "START updateDBPackageNamePrivacyLevel cororoutines")
             var appList = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
             var appListTrackedOld = UtilitiesStoreDataOnRealmDb.getAllPrivacySettingApp()
             //var appListTrackedOld = UtilitiesStoreDataOnDb.getAllPackageNamePrivacyLevel()
@@ -338,6 +354,9 @@ class MainActivity : AppCompatActivity(), NetBareListener, PermissionListener {
                     //appTracked.delete()
                 }
             }
+            // Reload the tracked list only after pruning uninstalled apps, so the
+            // VPN allowlist and the interceptor's monitoring list stay in sync.
+            appListTracked = UtilitiesStoreDataOnRealmDb.getListPackageNameTracked()
         }
     }
 

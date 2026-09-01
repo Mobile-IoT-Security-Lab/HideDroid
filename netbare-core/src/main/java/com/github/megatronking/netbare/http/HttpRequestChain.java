@@ -32,6 +32,7 @@ import java.util.List;
 public class HttpRequestChain extends AbstractRequestChain<HttpRequest, HttpInterceptor> {
 
     private HttpZygoteRequest mZygoteRequest;
+    private HttpVirtualGateway mGateway;
 
     /* package */ HttpRequestChain(HttpZygoteRequest request, List<HttpInterceptor> interceptors) {
         this(request, interceptors, 0, null);
@@ -43,6 +44,31 @@ public class HttpRequestChain extends AbstractRequestChain<HttpRequest, HttpInte
         this.mZygoteRequest = request;
     }
 
+    /* package */ void setGateway(HttpVirtualGateway gateway) {
+        this.mGateway = gateway;
+    }
+
+    /* package */ HttpVirtualGateway gateway() {
+        return mGateway;
+    }
+
+    /**
+     * Injects a synthetic HTTP response as if it came from the remote server, without
+     * forwarding the intercepted request. The data must be a complete plaintext HTTP/1.1
+     * response; it re-enters the response pipeline after the SSL/HTTP2 decoding stages
+     * and before the re-encryption stages, so it reaches the client correctly for both
+     * cleartext and HTTPS sessions. Must be called synchronously from a request
+     * interception; no-op if the chain has no gateway attached (unit tests).
+     *
+     * @param httpResponseData A complete HTTP/1.1 response, headers and optional body.
+     * @throws IOException If an I/O error has occurred writing to the client tunnel.
+     */
+    public void injectResponse(byte[] httpResponseData) throws IOException {
+        if (mGateway != null) {
+            mGateway.injectResponse(httpResponseData);
+        }
+    }
+
     HttpZygoteRequest zygoteRequest() {
         return mZygoteRequest;
     }
@@ -52,7 +78,9 @@ public class HttpRequestChain extends AbstractRequestChain<HttpRequest, HttpInte
                                List<HttpInterceptor> interceptors, int index, Object tag) throws IOException {
         HttpInterceptor interceptor = interceptors.get(index);
         if (interceptor != null) {
-            interceptor.intercept(new HttpRequestChain(mZygoteRequest, interceptors, ++index, tag), buffer);
+            HttpRequestChain next = new HttpRequestChain(mZygoteRequest, interceptors, ++index, tag);
+            next.setGateway(mGateway);
+            interceptor.intercept(next, buffer);
         }
     }
 

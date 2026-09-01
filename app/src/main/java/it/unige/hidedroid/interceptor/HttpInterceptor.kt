@@ -16,13 +16,14 @@ import io.realm.Realm
 import io.realm.RealmConfiguration
 import io.realm.kotlin.where
 import it.unige.hidedroid.interceptor.UtilsHttpInterceptor.fromMapToString
-import it.unige.hidedroid.interceptor.UtilsHttpInterceptor.isAnalyticsRequest
+import it.unige.hidedroid.log.DomainLogger
 import it.unige.hidedroid.log.LoggerHideDroid
 import it.unige.hidedroid.realmdatahelper.TrackersMappingDomainName
 import it.unige.hidedroid.realmdatahelper.UtilitiesStoreDataOnRealmDb
 import it.unige.hidedroid.utils.DomainAnonymizationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import java.io.IOException
 import java.net.URLDecoder
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
@@ -37,6 +38,7 @@ class HttpInterceptor(var packageManager: PackageManager,
                       var realmConfigLog: RealmConfiguration,
                       var listPrivateFields: List<String>,
                       var isDebugEnabled: AtomicBoolean,
+                      var isDomainBlockingEnabled: AtomicBoolean,
                       var idPacket: AtomicLong,
                       var dataAnonymizer: DataAnonymizer) : HttpIndexedInterceptor() {
 
@@ -48,6 +50,13 @@ class HttpInterceptor(var packageManager: PackageManager,
          */
         const val DECOMPRESS_BUFFER_SIZE = 16192
 
+        /**
+         * Synthetic answer for blocked requests: an empty 204 with the connection
+         * closed, so the target app sees a completed response instead of hanging
+         * until its own timeout (and usually retrying).
+         */
+        private val BLOCKED_RESPONSE = "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n".toByteArray()
+
         fun createFactory(packageManager: PackageManager,
                           trackersMappingDomainName: TrackersMappingDomainName,
                           listAppToMonitoring: MutableList<String>,
@@ -55,6 +64,7 @@ class HttpInterceptor(var packageManager: PackageManager,
                           realmConfigLog: RealmConfiguration,
                           listPrivateFields: List<String>,
                           isDebugEnabled: AtomicBoolean,
+                          isDomainBlockingEnabled: AtomicBoolean,
                           dataAnonymizer: DataAnonymizer): HttpInterceptorFactory {
 
             // createFactory() is invoked from the UI thread while assembling the VPN config,
@@ -74,7 +84,7 @@ class HttpInterceptor(var packageManager: PackageManager,
             }
 
             LoggerHideDroid.d(TAG, "I'm doing createFactory in HttpInterceptor")
-            return HttpInterceptorFactory { HttpInterceptor(packageManager, trackersMappingDomainName, listAppToMonitoring, realmConfigPrivateTracker, realmConfigLog, listPrivateFields, isDebugEnabled, idPacket, dataAnonymizer) }
+            return HttpInterceptorFactory { HttpInterceptor(packageManager, trackersMappingDomainName, listAppToMonitoring, realmConfigPrivateTracker, realmConfigLog, listPrivateFields, isDebugEnabled, isDomainBlockingEnabled, idPacket, dataAnonymizer) }
         }
     }
 
@@ -104,16 +114,65 @@ class HttpInterceptor(var packageManager: PackageManager,
                     ?: this.trackersMappingDomainName.isUrlPresent(chain.request().host())
 
             if (this.listAppToMonitoring.contains(packageNameApp)) {
+                val host = chain.request().host()
+                val isBlocked = isDomainBlockingEnabled.get() && DomainAnonymizationHelper.isBlocked(host, packageNameApp)
+
+                if (isBlocked) {
+                    if (index == 0) {
+                        DomainLogger.log(
+                                chain.request().time(),
+                                packageNameApp,
+                                host,
+                                chain.request().method().toString(),
+                                chain.request().path(),
+                                true,
+                                false,
+                                false
+                        )
+                        // The request is not forwarded, so answer it ourselves on the first
+                        // packet or the connection hangs until the app's timeout. Only
+                        // HTTP/1.x can take a raw HTTP/1.1 response; HTTP/2 streams stay
+                        // silently dropped.
+                        // ponytail: h2 blocked streams get no RST_STREAM, apps see a
+                        // stalled stream until their own timeout; add frame injection
+                        // if that becomes a problem.
+                        if (chain.request().streamId() == -1) {
+                            try {
+                                chain.injectResponse(BLOCKED_RESPONSE)
+                            } catch (e: IOException) {
+                                LoggerHideDroid.e(TAG, "Failed to answer blocked request to $host: $e")
+                            }
+                        }
+                    }
+                    LoggerHideDroid.d(TAG, "Blocking request to $host from $packageNameApp")
+                    return
+                }
+
                 if (index == 0) {
+                    // Log every first-packet request from a monitored app, body or not.
+                    // Body-based private-field detection below may upgrade isPrivate, but
+                    // that refinement is not reflected here; hosts already flagged in the
+                    // PrivateTracker table are caught by the isPrivate check above.
+                    DomainLogger.log(
+                            chain.request().time(),
+                            packageNameApp,
+                            host,
+                            chain.request().method().toString(),
+                            chain.request().path(),
+                            false,
+                            isTracked,
+                            isPrivate
+                    )
+
+                    // "Automatic" domain discovery: every host seen for a monitored
+                    // app gets listed (anonymization off by default) for the user to
+                    // toggle later - independent of whether it ends up tracked here.
+                    DomainAnonymizationHelper.recordAutomaticIfAbsent(host)
+
                     // if is the first that is complete of all data
                     val offsetBody = chain.request().requestBodyOffset()
                     if (offsetBody < buffer.array().size) {
                         val byteBuffer = Arrays.copyOfRange(buffer.array(), offsetBody, buffer.array().size)
-                        val host = chain.request().host()
-                        // "Automatic" domain discovery: every host seen for a monitored
-                        // app gets listed (anonymization off by default) for the user to
-                        // toggle later - independent of whether it ends up tracked here.
-                        DomainAnonymizationHelper.recordAutomaticIfAbsent(host)
                         val requestHeaders = chain.request().requestHeaders()
                         val requestHeadersString = fromMapToString(requestHeaders)
                         var bodyString = ""
@@ -266,6 +325,7 @@ class HttpInterceptor(var packageManager: PackageManager,
                                     "size request ${UtilitiesStoreDataOnRealmDb.getEventBufferFromPackageName(packageNameApp, host).event.size}")
 
                             LoggerHideDroid.d(TAG, "Request Host : ${host}, Package Name: $packageNameApp")
+
                             if (isTracked || isPrivate) {
                                 val id = idPacket.getAndIncrement()
                                 val analyticsRequest = AnalyticsRequest(
@@ -338,11 +398,8 @@ class HttpInterceptor(var packageManager: PackageManager,
                 } else {
                     chain.process(buffer)
                 }
-            } else if (this.listAppToMonitoring.contains(packageNameApp) && !isAnalyticsRequest(buffer.array())) {
-                // if i should intercept the content but is not analyticsRequest --> forward
-                chain.process(buffer)
             } else {
-                // if domain is not known or the app is not selected by the user
+                // app not selected for monitoring, or domain not known: forward as-is
                 chain.process(buffer)
             }
         } else {
@@ -360,11 +417,9 @@ class HttpInterceptor(var packageManager: PackageManager,
                 ?: this.trackersMappingDomainName.isUrlPresent(chain.response().host())
         val realm = Realm.getInstance(realmConfigPrivateTracker)
         realm.use { realm ->
-            realm.executeTransaction { realm ->
-                val realmResult = realm.where<PrivateTracker>().equalTo("host", chain.response().host()).findFirst()
-                if (realmResult != null) {
-                    isPrivate = true
-                }
+            val realmResult = realm.where<PrivateTracker>().equalTo("host", chain.response().host()).findFirst()
+            if (realmResult != null) {
+                isPrivate = true
             }
         }
         if (isTracked || isPrivate) {

@@ -33,6 +33,23 @@ object HideDroidStorage {
     }
 
     /**
+     * App-private external directory (/sdcard/Android/data/&lt;pkg&gt;/files) for captured
+     * traffic logs and exports made without a user-chosen SAF folder. Unlike the legacy
+     * dir, other apps cannot read these files - a domain log is a decent fingerprint of
+     * the device, and this is a privacy tool.
+     */
+    fun getPrivateDir(context: Context): File {
+        // ponytail: getExternalFilesDir only returns null for transient reasons;
+        // internal storage is a safe last resort, files there even survive uninstalls
+        // the same way.
+        val dir = context.getExternalFilesDir(null) ?: File(context.filesDir, "external")
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+        return dir
+    }
+
+    /**
      * Canonical, fixed location for ALL repack scratch work (extracted/decompiled/
      * rebuilt/signed APKs) and the final repacked APK -
      * /sdcard/HideDroid/repack_app - always, never user-chosen.

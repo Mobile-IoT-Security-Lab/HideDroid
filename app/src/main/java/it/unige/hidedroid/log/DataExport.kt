@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import com.dave.realmdatahelper.debug.Error
 import com.dave.realmdatahelper.debug.Request
+import com.dave.realmdatahelper.hidedroid.DomainLogEntry
 import io.realm.Realm
 import io.realm.RealmConfiguration
 import it.unige.hidedroid.realmdatahelper.UtilitiesStoreDataOnRealmDb
@@ -14,11 +15,14 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.OutputStream
+import java.util.Locale
 
 class DataExport(private val context: Context, private val treeUri: Uri? = null) {
 
     private val fallbackDir: File by lazy {
-        HideDroidStorage.prepareBaseDir(context)
+        // No SAF folder chosen: exports land in the app-private external dir, not the
+        // public legacy one - captured data should not be readable by other apps.
+        HideDroidStorage.getPrivateDir(context)
     }
 
     @Throws(IOException::class)
@@ -104,6 +108,40 @@ class DataExport(private val context: Context, private val treeUri: Uri? = null)
         Realm.getInstance(realmConfigDGH).use { realm ->
             copyRealmFile(realm.path, "realmDGH.realm")
         }
+    }
+
+    /**
+     * Exports the captured domain log. With [status] only the entries with that status
+     * are exported (e.g. "BLOCKED"); without it the whole table is. Returns the file name
+     * used, so the caller can show the right path.
+     */
+    @Throws(IOException::class)
+    fun exportDomainLogCsv(status: String? = null): String {
+        val fileName = if (status == null) {
+            "domain_log_realm.csv"
+        } else {
+            "domain_log_${status.lowercase(Locale.ROOT)}.csv"
+        }
+        Realm.getDefaultInstance().use { realm ->
+            val query = if (status == null) {
+                realm.where(DomainLogEntry::class.java)
+            } else {
+                realm.where(DomainLogEntry::class.java).equalTo("status", status)
+            }
+            val entries = realm.copyFromRealm(query.findAll())
+            writeText(fileName) { output ->
+                output.bufferedWriter().use { writer ->
+                    writer.write("id,timestamp,package_name,host,method,path,status\n")
+                    for (entry in entries) {
+                        writer.write(
+                            "${entry.id},${entry.timestamp},${escape(entry.packageName)},${escape(entry.host)}," +
+                                    "${escape(entry.method)},${escape(entry.path)},${escape(entry.status)}\n"
+                        )
+                    }
+                }
+            }
+        }
+        return fileName
     }
 
     @Throws(IOException::class)

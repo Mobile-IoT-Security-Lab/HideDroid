@@ -15,6 +15,8 @@
  */
 package com.github.megatronking.netbare.http;
 
+import android.os.Build;
+
 import com.github.megatronking.netbare.NetBareLog;
 import com.github.megatronking.netbare.ssl.SSLEngineFactory;
 import com.github.megatronking.netbare.ssl.SSLRequestCodec;
@@ -26,6 +28,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 
 /**
  * Http request ssl codec enables Application-Layer Protocol Negotiation(ALPN).
@@ -74,6 +77,13 @@ import javax.net.ssl.SSLEngine;
         if (mSelectedAlpnProtocol == null) {
             return sslEngine;
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android 10+ exposes ALPN through the public SSLParameters API and blocks
+            // reflection on the hidden Conscrypt/Java8EngineWrapper methods.
+            if (enableAlpnWithPublicApi(sslEngine)) {
+                return sslEngine;
+            }
+        }
         try {
             String sslEngineName = sslEngine.getClass().getSimpleName();
             if (sslEngineName.equals("Java8EngineWrapper")) {
@@ -88,6 +98,21 @@ import javax.net.ssl.SSLEngine;
             NetBareLog.wtf(e);
         }
         return sslEngine;
+    }
+
+    private boolean enableAlpnWithPublicApi(SSLEngine sslEngine) {
+        try {
+            SSLParameters params = sslEngine.getSSLParameters();
+            if (params == null) {
+                return false;
+            }
+            params.setApplicationProtocols(new String[]{mSelectedAlpnProtocol.toString().toLowerCase()});
+            sslEngine.setSSLParameters(params);
+            return true;
+        } catch (Exception e) {
+            NetBareLog.w("Public ALPN API failed, falling back to reflection: " + e.getMessage());
+            return false;
+        }
     }
 
     private void enableJava8EngineWrapperAlpn(SSLEngine sslEngine) throws NoSuchMethodException,

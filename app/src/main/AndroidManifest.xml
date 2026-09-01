@@ -75,6 +75,13 @@
             android:exported="false"
             />
 
+        <activity android:name=".activity.TrafficActivity"
+            android:label="@string/traffic_title"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".activity.MainActivity"
+            android:exported="false"
+            />
+
         <activity android:name=".activity.SplashActivity"
             android:exported="true"
             >

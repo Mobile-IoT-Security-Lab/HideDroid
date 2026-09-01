@@ -21,6 +21,8 @@ import com.dave.realmdatahelper.debug.Error as DebugError
 import com.dave.realmdatahelper.debug.Request as DebugRequest
 import com.dave.realmdatahelper.debug.Response as DebugResponse
 import com.dave.realmdatahelper.hidedroid.AnalyticsRequest
+import com.dave.realmdatahelper.hidedroid.DomainLogEntry
+import it.unige.hidedroid.log.DomainLogger
 import com.dave.realmdatahelper.hidedroid.EventBuffer
 import com.github.megatronking.netbare.NetBare
 import com.github.megatronking.netbare.ssl.JKS
@@ -67,8 +69,10 @@ class SettingsActivity : AppCompatActivity(), PermissionListener {
     private lateinit var exportDirLauncher: ActivityResultLauncher<Uri?>
 
     private lateinit var isDebugEnabled: AtomicBoolean
+    private lateinit var isDomainBlockingEnabled: AtomicBoolean
     private lateinit var listener: MainActivity.SharedPreferencesUpdateListener
     private lateinit var buttonDebugMode: MaterialButton
+    private lateinit var buttonDomainBlocking: MaterialButton
     private lateinit var buttonExportAll: MaterialButton
     private var verifyAfterExport = false
     private var pendingExportCallback: ((Uri) -> Unit)? = null
@@ -79,6 +83,7 @@ class SettingsActivity : AppCompatActivity(), PermissionListener {
         title = getString(R.string.settings_title)
 
         isDebugEnabled = (application as HideDroidApplication).isDebugEnabled
+        isDomainBlockingEnabled = (application as HideDroidApplication).isDomainBlockingEnabled
         listener = (application as HideDroidApplication).sharedPreferencesUpdateListener
 
         certInstallLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -112,6 +117,7 @@ class SettingsActivity : AppCompatActivity(), PermissionListener {
                 .check()
 
         buttonDebugMode = findViewById(R.id.buttonDebugMode)
+        buttonDomainBlocking = findViewById(R.id.buttonDomainBlocking)
         buttonExportAll = findViewById(R.id.buttonExportAllData)
         findViewById<MaterialButton>(R.id.buttonClearData).setOnClickListener { handleCleanDirectory() }
         findViewById<MaterialButton>(R.id.buttonInstallCA).setOnClickListener { handleCertificateInstallation() }
@@ -129,18 +135,46 @@ class SettingsActivity : AppCompatActivity(), PermissionListener {
             updateDebugModeUi()
         }
 
+        buttonDomainBlocking.setOnClickListener {
+            val newValue = !isDomainBlockingEnabled.get()
+            isDomainBlockingEnabled.set(newValue)
+            persistDomainBlockingPreference(newValue)
+            if (newValue) {
+                Toasty.success(this, "Domain blocking ON").show()
+            } else {
+                Toasty.info(this, "Domain blocking OFF").show()
+            }
+            updateDomainBlockingUi()
+        }
+
         updateDebugModeUi()
+        updateDomainBlockingUi()
     }
 
     override fun onResume() {
         super.onResume()
         updateDebugModeUi()
+        updateDomainBlockingUi()
     }
 
     private fun updateDebugModeUi() {
         val enabled = isDebugEnabled.get()
         buttonDebugMode.isChecked = enabled
         buttonDebugMode.text = getString(R.string.settings_debug_mode) + ": " + if (enabled) "ON" else "OFF"
+    }
+
+    private fun updateDomainBlockingUi() {
+        val enabled = isDomainBlockingEnabled.get()
+        buttonDomainBlocking.isChecked = enabled
+        buttonDomainBlocking.text = getString(R.string.settings_domain_blocking) + ": " + if (enabled) "ON" else "OFF"
+    }
+
+    private fun persistDomainBlockingPreference(enabled: Boolean) {
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        with(sharedPref.edit()) {
+            putBoolean(HideDroidApplication.DOMAIN_BLOCKING_ENABLED_KEY, enabled)
+            apply()
+        }
     }
 
     /** Single combined export (analytics DB + debug logs + DGH); only available with Debug Mode on. */
@@ -189,9 +223,19 @@ class SettingsActivity : AppCompatActivity(), PermissionListener {
                         val numberAcceptedRequest = responseTable.count { it.code in acceptedCodes }
                         val numberRefusedRequest = responseTable.size - numberAcceptedRequest
 
+                        val blockedEntries = realm.copyFromRealm(
+                                realm.where(DomainLogEntry::class.java).equalTo("status", "BLOCKED").findAll())
+                        val blockedRequestCount = blockedEntries.size
+                        val blockedHostsSet = blockedEntries
+                                .mapNotNull { it.host }
+                                .toMutableSet()
+
                         val loggerToJson = LoggerToJson(totalPackets, numberPacketsTracked, numberPacketsPrivate,
-                                allHostsSet.toMutableList(), trackedHostsSet.toMutableList(),
-                                privateHostsSet.toMutableList(), errors, numberAcceptedRequest, numberRefusedRequest)
+                                allHostsSet.filterNotNull().toMutableList(),
+                                trackedHostsSet.filterNotNull().toMutableList(),
+                                privateHostsSet.filterNotNull().toMutableList(),
+                                errors, numberAcceptedRequest, numberRefusedRequest,
+                                blockedRequestCount, blockedHostsSet.toMutableList())
                         val debugLogs = Gson().toJson(loggerToJson)
                         dataExport.exportDebugLogs(debugLogs)
 
@@ -201,6 +245,7 @@ class SettingsActivity : AppCompatActivity(), PermissionListener {
                     }
 
                     dataExport.exportRealmDGH(app.realmConfigDGH)
+                    dataExport.exportDomainLogCsv()
 
                     withContext(Dispatchers.Main) {
                         Toasty.success(this@SettingsActivity, getString(R.string.export_db_done)).show()
@@ -705,6 +750,10 @@ class SettingsActivity : AppCompatActivity(), PermissionListener {
                             realm.executeTransaction { realm -> realm.delete(EventBuffer::class.java) }
                             realm.executeTransaction { realm -> realm.delete(AnalyticsRequest::class.java) }
                         }
+
+                        // Clears the DomainLogEntry table through the logger so its id/count
+                        // state and the app-private CSV stay consistent with the wiped table.
+                        DomainLogger.clearHistory()
 
                         Realm.getInstance((application as HideDroidApplication).realmConfigLog).use { realmDebugLogs ->
                             // cancelliamo le informazioni raccolte all'interno delle tabelle Request, Error e Response

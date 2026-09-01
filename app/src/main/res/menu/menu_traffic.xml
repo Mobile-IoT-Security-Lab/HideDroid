@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/menu.xsd" xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_traffic_count"
+        android:title="@string/traffic_count_menu"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_traffic_export"
+        android:title="@string/traffic_export_menu"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_traffic_delete"
+        android:title="@string/traffic_delete_menu"
+        app:showAsAction="never" />
+
+</menu>

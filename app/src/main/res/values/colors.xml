@@ -29,4 +29,8 @@
     <color name="seek_bar_progress_high">#3ddc84</color>
     <!--<color name="seek_bar_progress_high">#43D40F</color>-->
     <color name="seek_bar_secondary_progress">#3399CC</color>
+    <color name="traffic_blocked">#D32F2F</color>
+    <color name="traffic_tracked">#F57C00</color>
+    <color name="traffic_private">#7B1FA2</color>
+    <color name="traffic_normal">#388E3C</color>
 </resources>

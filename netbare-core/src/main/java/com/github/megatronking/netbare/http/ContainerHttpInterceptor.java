@@ -141,6 +141,7 @@ import java.util.concurrent.ConcurrentHashMap;
         private HttpContainerRequestChain(HttpRequestChain chain, List<HttpInterceptor> interceptors,
                                           int index, Object tag) {
             super(chain.zygoteRequest(), interceptors, index, tag);
+            setGateway(chain.gateway());
             this.mChain = chain;
             this.mInterceptors = interceptors;
             this.mIndex = index;

@@ -7,4 +7,14 @@
         android:title="Search"
         app:actionViewClass="androidx.appcompat.widget.SearchView"
         app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_export_domains"
+        android:title="@string/action_export_domains"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_import_domains"
+        android:title="@string/action_import_domains"
+        app:showAsAction="never" />
 </menu>

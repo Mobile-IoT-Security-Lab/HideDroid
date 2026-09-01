@@ -10,6 +10,7 @@ import com.dave.realmdatahelper.hidedroid.PackageNamePrivacyLevel
 import com.dave.realmdatahelper.realmmodules.DGHModule
 import com.dave.realmdatahelper.realmmodules.DebugModule
 import com.dave.realmdatahelper.realmmodules.DefaultModules
+import com.dave.realmdatahelper.realmmodules.DefaultModulesMigration
 import com.dave.realmdatahelper.realmmodules.PrivateTrackerModule
 import com.github.megatronking.netbare.BuildConfig
 import com.github.megatronking.netbare.NetBare
@@ -35,6 +36,7 @@ class HideDroidApplication : Application() {
     companion object {
         const val JSK_ALIAS = "HideDroidSample"
         const val DEBUG_ENABLED_KEY = "debugEnabled"
+        const val DOMAIN_BLOCKING_ENABLED_KEY = "domainBlockingEnabled"
 
         private lateinit var sInstance: HideDroidApplication
 
@@ -49,6 +51,7 @@ class HideDroidApplication : Application() {
     lateinit var realmConfigLog: RealmConfiguration
 
     val isDebugEnabled: AtomicBoolean = AtomicBoolean(false)
+    val isDomainBlockingEnabled: AtomicBoolean = AtomicBoolean(false)
     lateinit var preferences: SharedPreferences
     lateinit var sharedPreferencesUpdateListener: MainActivity.SharedPreferencesUpdateListener
     var serviceAnonymizationReady: ServiceAnonymizationReady? = null
@@ -85,6 +88,8 @@ class HideDroidApplication : Application() {
                 isDebugEnabled.set(true) // TODO: set default to false
             }
         }
+
+        isDomainBlockingEnabled.set(preferences.getBoolean(DOMAIN_BLOCKING_ENABLED_KEY, false))
 
         sharedPreferencesUpdateListener = object : MainActivity.SharedPreferencesUpdateListener {
             override fun onUpdatePreferences(isDebugEnabled: Boolean) {
@@ -135,8 +140,9 @@ class HideDroidApplication : Application() {
         Realm.init(this)
         val realmConfig = RealmConfiguration.Builder()
                 .name("realmeventbuffer.realm")
-                .schemaVersion(0)
+                .schemaVersion(2)
                 .modules(DefaultModules())
+                .migration(DefaultModulesMigration())
                 // Several flows (repackaging, install/uninstall callbacks, privacy
                 // settings) persist tiny single-object writes directly from the UI
                 // thread. Since Realm 7.x this requires an explicit opt-in.

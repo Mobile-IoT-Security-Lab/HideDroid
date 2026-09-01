@@ -63,6 +63,26 @@ Repackaging only makes the target app trust the HideDroid CA at the **network se
 
 HideDroid does not detect or bypass pinning: repackaging will still "succeed" (the app installs and runs), but pinned connections will simply fail or refuse to use the proxy, and no data will be read for that app. Defeating pinning requires app-specific reverse engineering (e.g. patching the pinning check with a tool like Frida/objection) that is outside HideDroid's scope. Cleartext (non-HTTPS) traffic from the same app is unaffected and is still intercepted normally.
 
+## ❱ Live Traffic
+
+The **Traffic** view (navigation drawer) shows the requests captured by the VPN interceptor in near real time: host, package, HTTP method, timestamp and a color-coded status. The list can be filtered by status, limited to the newest 50–1000 items (remembered across restarts) and the current filter exported as CSV to the app's private storage.
+
+### Request statuses
+
+| Status | Meaning |
+|:------:|---------|
+| **Normal** | Host not in the tracker list and the request body contains no personal data. Forwarded untouched, only logged. |
+| **Private** | Host is not a known tracker, but the request body contains personal data (name, email, phone, device identifiers, location, ...) matched against HideDroid's private-field list. The body is stored and anonymized like tracker traffic, and the host is recorded so it stays flagged. |
+| **Tracked** | Known analytics/tracker domain (bundled `trackers.json` list, or a host enabled manually). The request body is anonymized before forwarding. |
+| **Blocked** | Host blocked by the user. The request is never forwarded: the app receives a synthetic empty response (`204 No Content`), so nothing ever reaches the real server. |
+
+### Acting on a request
+
+- **Tap** an entry to block its host (for all apps, or for the originating app only). Tapping an already-blocked host offers to unblock it.
+- **Long-press** an entry to anonymize the host from now on: it is added to the tracked domains and enabled.
+
+The same controls are available from **Settings → Domain settings**, where each domain's anonymization/blocking state and per-app restrictions can be reviewed.
+
 ## ❱ Publication
 
 More details about **HideDroid** can be found in the paper [You can’t always get what you want: towards user-controlled privacy on Android](https://ieeexplore.ieee.org/abstract/document/9694493):

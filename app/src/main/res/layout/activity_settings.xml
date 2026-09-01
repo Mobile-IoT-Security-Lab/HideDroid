@@ -37,6 +37,19 @@
                 app:cornerRadius="20sp" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonDomainBlocking"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:checkable="true"
+                android:padding="16dp"
+                android:text="@string/settings_domain_blocking"
+                android:textColor="@android:color/black"
+                android:textStyle="bold"
+                app:backgroundTint="@color/repack_mode_button_background"
+                app:cornerRadius="20sp" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonClearData"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

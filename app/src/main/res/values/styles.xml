@@ -8,6 +8,10 @@
         <!-- enable window content transitions -->
         <item name="android:windowActivityTransitions">true</item>
         <item name="android:fontFamily">@font/roboto</item>
+        <!-- Pin the action-bar overflow popup to black-on-white: system force-dark
+             on some Android 10+ devices re-themes the popup to white text on the
+             light background, making the menu unreadable. -->
+        <item name="actionBarPopupTheme">@style/AppTheme.PopupOverlay</item>
 <!--        <item name="android:windowBackground">@color/icon_background</item> -->
     </style>
 
@@ -100,6 +104,9 @@
     </style>
 
     <style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
-    <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+    <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light">
+        <item name="android:textColorPrimary">@android:color/black</item>
+        <item name="android:textColorSecondary">@android:color/black</item>
+    </style>
 
 </resources>
