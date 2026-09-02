@@ -3,34 +3,42 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <!-- Uniform dark-grey tint: the icons come from mixed sources (custom PNGs,
+         material vectors, a platform drawable) and render in different colors
+         otherwise. Supported by the AppCompat menu inflater since 1.1.0. -->
     <item
         android:id="@+id/action_select_apps"
         android:icon="@drawable/nav_icon_select_apps"
         android:title="@string/action_select_apps"
+        app:iconTint="#444444"
         app:showAsAction="always" />
 
     <item
         android:id="@+id/action_show_repacked_apps"
         android:icon="@drawable/baseline_archive_24"
         android:title="@string/action_show_repacked_apps"
+        app:iconTint="#444444"
         app:showAsAction="always" />
 
     <item
         android:id="@+id/action_domain_settings"
         android:icon="@drawable/nav_icon_domain_settings"
         android:title="@string/action_domain_settings"
+        app:iconTint="#444444"
         app:showAsAction="always" />
 
     <item
         android:id="@+id/action_live_traffic"
         android:icon="@android:drawable/ic_menu_recent_history"
         android:title="@string/action_live_traffic"
+        app:iconTint="#444444"
         app:showAsAction="always" />
 
     <item
         android:id="@+id/action_settings"
         android:icon="@drawable/baseline_settings_24"
         android:title="@string/action_settings"
+        app:iconTint="#444444"
         app:showAsAction="always" />
 
 </menu>

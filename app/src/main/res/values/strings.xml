@@ -73,6 +73,9 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_yes">Yes</string>
     <string name="action_no">No</string>
+    <string name="action_add">Add</string>
+    <string name="action_save">Save</string>
+    <string name="action_clear_all">Clear all</string>
     <string name="settings_title">Settings</string>
     <string name="settings_debug_mode">Debug Mode</string>
     <string name="settings_domain_blocking">Block domains</string>
@@ -93,6 +96,8 @@
     <string name="domain_app_restrictions_empty">Block all apps (long-press to restrict)</string>
     <string name="domain_app_restrictions_set">Restrictions updated</string>
     <string name="domains_empty">No domains yet.</string>
+    <string name="domain_filter_label">Filter: %1$s</string>
+    <string name="domain_filter_title">Show domains</string>
     <string name="action_add_domain">Add domain</string>
     <string name="domain_add_hint">example.com</string>
     <string name="domain_added_result">Added %1$s (anonymization off by default)</string>

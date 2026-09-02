@@ -33,15 +33,17 @@ import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
 
-private enum class EnabledFilter { ALL, ENABLED, DISABLED }
-
-private enum class BlockedFilter { ALL, BLOCKED, ALLOWED }
-
-private enum class AddedByFilter(val value: String?) {
-    ALL(null),
-    DEFAULT(DomainAnonymizationHelper.ADDED_BY_DEFAULT),
-    MANUAL(DomainAnonymizationHelper.ADDED_BY_MANUAL),
-    AUTOMATIC(DomainAnonymizationHelper.ADDED_BY_AUTOMATIC)
+/** One combined filter instead of the old three button rows: All, enabled/disabled,
+ *  blocked/allowed, or where the domain came from (default/manual/automatic). */
+private enum class DomainFilter(val labelRes: Int) {
+    ALL(R.string.filter_all),
+    ENABLED(R.string.filter_enabled),
+    DISABLED(R.string.filter_disabled),
+    BLOCKED(R.string.filter_blocked),
+    ALLOWED(R.string.filter_allowed),
+    DEFAULT(R.string.domain_added_by_default),
+    MANUAL(R.string.domain_added_by_manual),
+    AUTOMATIC(R.string.domain_added_by_automatic)
 }
 
 /**
@@ -58,9 +60,7 @@ class DomainSettingsActivity : AppCompatActivity() {
 
     private var allDomains: List<AnonymizedDomain> = emptyList()
     private var query: String = ""
-    private var enabledFilter = EnabledFilter.ALL
-    private var blockedFilter = BlockedFilter.ALL
-    private var addedByFilter = AddedByFilter.ALL
+    private var filter = DomainFilter.ALL
 
     private val domainExportFile: File
         get() = File(HideDroidStorage.getLegacyBaseDir(), "domain_list.json")
@@ -87,9 +87,7 @@ class DomainSettingsActivity : AppCompatActivity() {
         )
         recyclerView.adapter = adapter
 
-        setupEnabledFilterButtons()
-        setupBlockedFilterButtons()
-        setupAddedByFilterButtons()
+        setupFilterDropdown()
 
         findViewById<FloatingActionButton>(R.id.buttonAddDomain).setOnClickListener { promptAddDomain() }
     }
@@ -99,54 +97,25 @@ class DomainSettingsActivity : AppCompatActivity() {
         reload()
     }
 
-    private fun setupEnabledFilterButtons() {
-        val all = findViewById<View>(R.id.filterEnabledAll)
-        val enabled = findViewById<View>(R.id.filterEnabledOn)
-        val disabled = findViewById<View>(R.id.filterEnabledOff)
-        val buttons = listOf(all, enabled, disabled)
-        fun select(selected: View, mode: EnabledFilter) {
-            buttons.forEach { it.alpha = if (it === selected) 1f else 0.5f }
-            enabledFilter = mode
-            applyFilter()
+    private fun setupFilterDropdown() {
+        val button = findViewById<MaterialButton>(R.id.buttonDomainFilter)
+        fun updateLabel() {
+            button.text = getString(R.string.domain_filter_label, getString(filter.labelRes))
         }
-        all.setOnClickListener { select(all, EnabledFilter.ALL) }
-        enabled.setOnClickListener { select(enabled, EnabledFilter.ENABLED) }
-        disabled.setOnClickListener { select(disabled, EnabledFilter.DISABLED) }
-        select(all, EnabledFilter.ALL)
-    }
-
-    private fun setupBlockedFilterButtons() {
-        val all = findViewById<View>(R.id.filterBlockedAll)
-        val blocked = findViewById<View>(R.id.filterBlockedOn)
-        val allowed = findViewById<View>(R.id.filterBlockedOff)
-        val buttons = listOf(all, blocked, allowed)
-        fun select(selected: View, mode: BlockedFilter) {
-            buttons.forEach { it.alpha = if (it === selected) 1f else 0.5f }
-            blockedFilter = mode
-            applyFilter()
+        button.setOnClickListener {
+            val labels = DomainFilter.values().map { getString(it.labelRes) }.toTypedArray()
+            AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
+                    .setTitle(getString(R.string.domain_filter_title))
+                    .setSingleChoiceItems(labels, filter.ordinal) { dialog, which ->
+                        filter = DomainFilter.values()[which]
+                        updateLabel()
+                        dialog.dismiss()
+                        applyFilter()
+                    }
+                    .setNegativeButton(getString(R.string.action_cancel), null)
+                    .show()
         }
-        all.setOnClickListener { select(all, BlockedFilter.ALL) }
-        blocked.setOnClickListener { select(blocked, BlockedFilter.BLOCKED) }
-        allowed.setOnClickListener { select(allowed, BlockedFilter.ALLOWED) }
-        select(all, BlockedFilter.ALL)
-    }
-
-    private fun setupAddedByFilterButtons() {
-        val all = findViewById<View>(R.id.filterAddedByAll)
-        val default = findViewById<View>(R.id.filterAddedByDefault)
-        val manual = findViewById<View>(R.id.filterAddedByManual)
-        val automatic = findViewById<View>(R.id.filterAddedByAutomatic)
-        val buttons = listOf(all, default, manual, automatic)
-        fun select(selected: View, mode: AddedByFilter) {
-            buttons.forEach { it.alpha = if (it === selected) 1f else 0.5f }
-            addedByFilter = mode
-            applyFilter()
-        }
-        all.setOnClickListener { select(all, AddedByFilter.ALL) }
-        default.setOnClickListener { select(default, AddedByFilter.DEFAULT) }
-        manual.setOnClickListener { select(manual, AddedByFilter.MANUAL) }
-        automatic.setOnClickListener { select(automatic, AddedByFilter.AUTOMATIC) }
-        select(all, AddedByFilter.ALL)
+        updateLabel()
     }
 
     private fun reload() {
@@ -157,18 +126,17 @@ class DomainSettingsActivity : AppCompatActivity() {
     private fun applyFilter() {
         val filtered = allDomains.filter { domain ->
             val matchesQuery = query.isBlank() || domain.host?.contains(query, ignoreCase = true) == true
-            val matchesEnabled = when (enabledFilter) {
-                EnabledFilter.ALL -> true
-                EnabledFilter.ENABLED -> domain.enabled
-                EnabledFilter.DISABLED -> !domain.enabled
+            val matchesFilter = when (filter) {
+                DomainFilter.ALL -> true
+                DomainFilter.ENABLED -> domain.enabled
+                DomainFilter.DISABLED -> !domain.enabled
+                DomainFilter.BLOCKED -> domain.blocked
+                DomainFilter.ALLOWED -> !domain.blocked
+                DomainFilter.DEFAULT -> domain.addedBy == DomainAnonymizationHelper.ADDED_BY_DEFAULT
+                DomainFilter.MANUAL -> domain.addedBy == DomainAnonymizationHelper.ADDED_BY_MANUAL
+                DomainFilter.AUTOMATIC -> domain.addedBy == DomainAnonymizationHelper.ADDED_BY_AUTOMATIC
             }
-            val matchesBlocked = when (blockedFilter) {
-                BlockedFilter.ALL -> true
-                BlockedFilter.BLOCKED -> domain.blocked
-                BlockedFilter.ALLOWED -> !domain.blocked
-            }
-            val matchesAddedBy = addedByFilter.value == null || domain.addedBy == addedByFilter.value
-            matchesQuery && matchesEnabled && matchesBlocked && matchesAddedBy
+            matchesQuery && matchesFilter
         }
         adapter.submit(filtered)
         emptyView.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
@@ -181,7 +149,7 @@ class DomainSettingsActivity : AppCompatActivity() {
         AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
                 .setTitle(getString(R.string.action_add_domain))
                 .setView(input)
-                .setPositiveButton("Add") { _, _ ->
+                .setPositiveButton(getString(R.string.action_add)) { _, _ ->
                     val host = input.text.toString().trim().lowercase()
                     if (host.isNotEmpty()) {
                         if (DomainAnonymizationHelper.addManual(host)) {
@@ -192,7 +160,7 @@ class DomainSettingsActivity : AppCompatActivity() {
                         }
                     }
                 }
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(getString(R.string.action_cancel), null)
                 .show()
     }
 
@@ -226,7 +194,7 @@ class DomainSettingsActivity : AppCompatActivity() {
         AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
                 .setTitle(getString(R.string.domain_app_restrictions, host))
                 .setView(container)
-                .setPositiveButton("Save") { _, _ ->
+                .setPositiveButton(getString(R.string.action_save)) { _, _ ->
                     val entered = input.text.toString()
                             .split(",", ";", "\n")
                             .map { it.trim() }
@@ -237,8 +205,8 @@ class DomainSettingsActivity : AppCompatActivity() {
                     Toasty.info(this, getString(R.string.domain_app_restrictions_set)).show()
                     reload()
                 }
-                .setNegativeButton("Cancel", null)
-                .setNeutralButton("Clear all") { _, _ ->
+                .setNegativeButton(getString(R.string.action_cancel), null)
+                .setNeutralButton(getString(R.string.action_clear_all)) { _, _ ->
                     DomainAnonymizationHelper.setAppPackages(host, emptyList())
                     Toasty.info(this, getString(R.string.domain_app_restrictions_set)).show()
                     reload()
@@ -250,13 +218,13 @@ class DomainSettingsActivity : AppCompatActivity() {
         AlertDialog.Builder(this, R.style.CustomAlertDialogRounded)
                 .setTitle(getString(R.string.action_delete_domain_short))
                 .setMessage(getString(R.string.delete_domain_confirm, domain.host))
-                .setPositiveButton("Yes") { _, _ ->
+                .setPositiveButton(getString(R.string.action_yes)) { _, _ ->
                     if (DomainAnonymizationHelper.deleteIfManual(domain.host!!)) {
                         Toasty.info(this, getString(R.string.delete_domain_done)).show()
                         reload()
                     }
                 }
-                .setNegativeButton("No", null)
+                .setNegativeButton(getString(R.string.action_no), null)
                 .show()
     }
 

@@ -1,6 +1,9 @@
 <resources>
 
-    <style name="AppTheme" parent="Theme.MaterialComponents.Light">
+    <!-- Base style holds the real parent; AppTheme variants (values-v29 adds
+         forceDarkAllowed on top) override AppTheme by name, which REPLACES the
+         parent, so every override must point back here explicitly. -->
+    <style name="Base.AppTheme" parent="Theme.MaterialComponents.Light">
         <!-- Customize your theme here. -->
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
@@ -15,13 +18,7 @@
 <!--        <item name="android:windowBackground">@color/icon_background</item> -->
     </style>
 
-    <!--<style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
-        <item name="android:windowActivityTransitions">true</item>
-        <item name="android:fontFamily">@font/roboto</item>
-    </style>-->
+    <style name="AppTheme" parent="Base.AppTheme" />
 
     <style name="AppTheme.Launcher" parent="Theme.MaterialComponents.Light.NoActionBar">
     <item name="android:windowBackground">@drawable/launch_screen</item>

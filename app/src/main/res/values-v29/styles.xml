@@ -3,7 +3,7 @@
     <!-- The app is a fixed light UI (targetSdk 28), but Android 10+ force-dark can
          still re-theme it on dark-mode OEM builds, which is what turns the overflow
          menu text white on white. Opt out explicitly. -->
-    <style name="AppTheme">
+    <style name="AppTheme" parent="Base.AppTheme">
         <item name="android:forceDarkAllowed">false</item>
     </style>
 

@@ -4,207 +4,24 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <LinearLayout
-        android:id="@+id/enabledFilterGroup"
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/buttonDomainFilter"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="40dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="8dp"
-        android:background="@android:color/white"
-        android:orientation="horizontal"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:textAllCaps="false"
+        android:textColor="@color/filter_button_text"
+        app:backgroundTint="@color/filter_button_background"
+        app:cornerRadius="4dp"
+        app:strokeColor="@color/colorPrimary"
+        app:strokeWidth="1dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/filterEnabledAll"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_weight="1"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="@string/filter_all"
-            android:textSize="11sp"
-            android:textColor="@color/filter_button_text"
-            app:backgroundTint="@color/filter_button_background"
-            app:cornerRadius="4dp"
-            app:strokeColor="@color/colorPrimary"
-            app:strokeWidth="1dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/filterEnabledOn"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="@string/filter_enabled"
-            android:textSize="11sp"
-            android:textColor="@color/filter_button_text"
-            app:backgroundTint="@color/filter_button_background"
-            app:cornerRadius="4dp"
-            app:strokeColor="@color/colorPrimary"
-            app:strokeWidth="1dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/filterEnabledOff"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="@string/filter_disabled"
-            android:textSize="11sp"
-            android:textColor="@color/filter_button_text"
-            app:backgroundTint="@color/filter_button_background"
-            app:cornerRadius="4dp"
-            app:strokeColor="@color/colorPrimary"
-            app:strokeWidth="1dp" />
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/blockedFilterGroup"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginEnd="8dp"
-        android:background="@android:color/white"
-        android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/enabledFilterGroup">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/filterBlockedAll"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_weight="1"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="@string/filter_all"
-            android:textSize="11sp"
-            android:textColor="@color/filter_button_text"
-            app:backgroundTint="@color/filter_button_background"
-            app:cornerRadius="4dp"
-            app:strokeColor="@color/colorPrimary"
-            app:strokeWidth="1dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/filterBlockedOn"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="@string/filter_blocked"
-            android:textSize="11sp"
-            android:textColor="@color/filter_button_text"
-            app:backgroundTint="@color/filter_button_background"
-            app:cornerRadius="4dp"
-            app:strokeColor="@color/colorPrimary"
-            app:strokeWidth="1dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/filterBlockedOff"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="@string/filter_allowed"
-            android:textSize="11sp"
-            android:textColor="@color/filter_button_text"
-            app:backgroundTint="@color/filter_button_background"
-            app:cornerRadius="4dp"
-            app:strokeColor="@color/colorPrimary"
-            app:strokeWidth="1dp" />
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/addedByFilterGroup"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginEnd="8dp"
-        android:background="@android:color/white"
-        android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/blockedFilterGroup">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/filterAddedByAll"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_weight="1"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="@string/filter_all"
-            android:textSize="10sp"
-            android:textColor="@color/filter_button_text"
-            app:backgroundTint="@color/filter_button_background"
-            app:cornerRadius="4dp"
-            app:strokeColor="@color/colorPrimary"
-            app:strokeWidth="1dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/filterAddedByDefault"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="@string/domain_added_by_default"
-            android:textSize="10sp"
-            android:textColor="@color/filter_button_text"
-            app:backgroundTint="@color/filter_button_background"
-            app:cornerRadius="4dp"
-            app:strokeColor="@color/colorPrimary"
-            app:strokeWidth="1dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/filterAddedByManual"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="@string/domain_added_by_manual"
-            android:textSize="10sp"
-            android:textColor="@color/filter_button_text"
-            app:backgroundTint="@color/filter_button_background"
-            app:cornerRadius="4dp"
-            app:strokeColor="@color/colorPrimary"
-            app:strokeWidth="1dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/filterAddedByAutomatic"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="@string/domain_added_by_automatic"
-            android:textSize="10sp"
-            android:textColor="@color/filter_button_text"
-            app:backgroundTint="@color/filter_button_background"
-            app:cornerRadius="4dp"
-            app:strokeColor="@color/colorPrimary"
-            app:strokeWidth="1dp" />
-
-    </LinearLayout>
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/emptyDomains"
@@ -216,7 +33,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/addedByFilterGroup"
+        app:layout_constraintTop_toBottomOf="@+id/buttonDomainFilter"
         app:layout_constraintVertical_bias="0.3" />
 
     <androidx.recyclerview.widget.RecyclerView
@@ -228,7 +45,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/addedByFilterGroup" />
+        app:layout_constraintTop_toBottomOf="@+id/buttonDomainFilter" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/buttonAddDomain"
